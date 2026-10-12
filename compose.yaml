@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: gharflow
+      POSTGRES_USER: gharflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5439:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gharflow -d gharflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  ocr:
+    build: ./ocr
+    environment:
+      OCR_INTERNAL_TOKEN: ${OCR_INTERNAL_TOKEN:?Set OCR_INTERNAL_TOKEN in .env}
+    expose:
+      - "8000"
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://gharflow:${POSTGRES_PASSWORD}@db:5432/gharflow
+      OCR_URL: http://ocr:8000
+      OCR_INTERNAL_TOKEN: ${OCR_INTERNAL_TOKEN}
+      UPLOAD_DIR: /data/uploads
+      NODE_ENV: production
+      COOKIE_SECURE: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      ocr:
+        condition: service_started
+volumes:
+  db_data:
+  uploads:

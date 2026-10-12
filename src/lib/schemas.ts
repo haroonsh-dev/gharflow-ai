@@ -9,7 +9,7 @@ const reading = z.coerce.number().finite().min(0).max(1000000000);
 export const billSchema = z.object({
   evidenceFileId: z.uuid().nullable().optional(),
   referenceNumber: z.string().regex(/^\d{14}$/),
-  billMonth: date,
+  billMonth: date.refine((value) => value.endsWith("-01"), "Bill month must use the first day of the month"),
   previousReading: reading.nullable(),
   currentReading: reading.nullable(),
   multiplier: z.coerce.number().finite().positive().max(10000),

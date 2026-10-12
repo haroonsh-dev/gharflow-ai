@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { guard, errorResponse, failure } from "@/lib/http";
 import { saveEvidence, type EvidenceKind } from "@/lib/storage";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -15,11 +16,10 @@ export async function POST(request: Request) {
     if (kind !== "bill") return NextResponse.json({ evidenceFileId: saved.id });
     try {
       const body = new FormData();
-      body.set("file", new Blob([saved.bytes], { type: saved.mime }), file.name);
+      body.set("file", new Blob([Uint8Array.from(saved.bytes)], { type: saved.mime }), file.name);
       const response = await fetch(`${process.env.OCR_URL ?? "http://ocr:8000"}/extract`, { method: "POST", headers: { "x-internal-token": process.env.OCR_INTERNAL_TOKEN ?? "" }, body, signal: AbortSignal.timeout(30000) });
       if (!response.ok) throw new Error(`OCR returned ${response.status}`);
-      const result: unknown = await response.json();
-      if (!result || typeof result !== "object" || !("fields" in result) || !result.fields || typeof result.fields !== "object") throw new Error("Invalid OCR response");
+      const result = z.object({ fields: z.record(z.string(), z.string().max(100)) }).parse(await response.json());
       return NextResponse.json({ evidenceFileId: saved.id, fields: result.fields, ocrStatus: "extracted", verifiedFormat: false });
     } catch (error) {
       console.warn("OCR unavailable", error);

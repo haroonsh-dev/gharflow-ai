@@ -22,7 +22,7 @@ export async function startSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("base64url");
   const hash = createHash("sha256").update(token).digest("hex");
   await rows(`INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1,$2,now()+interval '14 days')`, [userId, hash]);
-  (await cookies()).set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: SESSION_DAYS * 86400 });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, secure: process.env.COOKIE_SECURE === "true", sameSite: "lax", path: "/", maxAge: SESSION_DAYS * 86400 });
 }
 
 export async function endSession(): Promise<void> {
