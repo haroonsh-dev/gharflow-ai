@@ -1,0 +1,31 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 410 >>
+stream
+BT /F1 15 Tf 50 790 Td (SYNTHETIC GHARFLOW DEMONSTRATION) Tj 0 -34 Td (NOT A REAL LESCO BILL) Tj 0 -34 Td (REFERENCE NO 12345678901234) Tj 0 -34 Td (METER NO DEMO-01) Tj 0 -34 Td (READING DATE 2026-08-10) Tj 0 -34 Td (PREVIOUS READING 1000) Tj 0 -34 Td (CURRENT READING 1100) Tj 0 -34 Td (UNITS CONSUMED 100) Tj 0 -34 Td (TOTAL AMOUNT 5000) Tj 0 -34 Td (These values are demonstration fixtures.) Tj 0 -34 Td ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+772
+%%EOF

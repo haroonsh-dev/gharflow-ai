@@ -1,0 +1,9 @@
+{
+  "name": "Synthetic document pipeline fixtures",
+  "split": "pipeline_fixture",
+  "synthetic": true,
+  "documents": [
+    {"file":"normal.pdf","expected":{"reference_number":"12345678901234","previous_reading":"1000","current_reading":"1100","billed_units":"100","total_amount":"5000"}},
+    {"file":"discrepancy.pdf","expected":{"reference_number":"12345678901234","previous_reading":"1100","current_reading":"1220","billed_units":"160","total_amount":"7000"}}
+  ]
+}

@@ -1,8 +1,9 @@
 "use client";
+import { t } from "@/lib/copy";
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Bolt, CircleCheck, FileSearch, LockKeyhole, TrendingDown } from "lucide-react";
+import { ArrowRight, Zap as Bolt, CircleCheck, FileSearch, LockKeyhole, TrendingDown } from "lucide-react";
 
 export default function AuthForm() {
   const router = useRouter();
@@ -21,30 +22,32 @@ export default function AuthForm() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not continue"); setBusy(false); }
   }
 
+  async function demo(){setBusy(true);setError("");try{const response=await fetch("/api/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reset:false})});const result=await response.json();if(!response.ok)throw new Error(result.error??"Demo unavailable");router.push("/dashboard");router.refresh();}catch(cause){setError(cause instanceof Error?cause.message:"Demo unavailable");setBusy(false);}}
   return <main className="auth-page">
     <section className="auth-story">
-      <div className="brand brand-light"><span className="brand-mark"><Bolt size={23} strokeWidth={2.6} /></span><span>GharFlow <b>AI</b></span></div>
+      <div className="brand brand-light"><span className="brand-mark"><Bolt size={23} strokeWidth={2.6} /></span><span>{t("GharFlow")}<b>{t("AI")}</b></span></div>
       <div className="auth-story-content">
-        <span className="eyebrow-light">HOUSEHOLD ENERGY, MADE CLEAR</span>
-        <h1>Know what your electricity bill is really saying.</h1>
-        <p>Keep your LESCO bills and readings together. Spot figures worth checking and make decisions with the evidence in front of you.</p>
-        <div className="story-steps"><div><FileSearch size={20}/><span>Upload a bill</span></div><div><CircleCheck size={20}/><span>Confirm the details</span></div><div><TrendingDown size={20}/><span>Review trends and findings</span></div></div>
+        <span className="eyebrow-light">{t("HOUSEHOLD ENERGY, MADE CLEAR")}</span>
+        <h1>{t("Know what your electricity bill is really saying.")}</h1>
+        <p>{t("Keep your LESCO bills and readings together. Spot figures worth checking and make decisions with the evidence in front of you.")}</p>
+        <div className="story-steps"><div><FileSearch size={20}/><span>{t("Upload a bill")}</span></div><div><CircleCheck size={20}/><span>{t("Confirm the details")}</span></div><div><TrendingDown size={20}/><span>{t("Review trends and findings")}</span></div></div>
       </div>
-      <p className="auth-footnote">Local document reading · No external AI provider</p>
+      <p className="auth-footnote">{t("Local document reading · No external AI provider")}</p>
     </section>
     <section className="auth-panel">
       <div className="auth-card">
-        <span className="eyebrow">YOUR PRIVATE WORKSPACE</span>
-        <h2>{mode === "signup" ? "Start with clarity." : "Welcome back."}</h2>
-        <p className="muted">{mode === "signup" ? "Create an account to keep your household records together." : "Sign in to continue reviewing your household records."}</p>
+        <span className="eyebrow">{t("YOUR PRIVATE WORKSPACE")}</span>
+        <h2>{mode === "signup" ? t("Start with clarity.") : t("Welcome back.")}</h2>
+        <p className="muted">{mode === "signup" ? t("Create an account to keep your household records together.") : t("Sign in to continue reviewing your household records.")}</p>
         <form onSubmit={submit} className="stack-form">
-          <label>Email address<input name="email" type="email" autoComplete="email" required placeholder="you@example.com" /></label>
-          <label>Password<input name="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={12} required placeholder="At least 12 characters" /></label>
+          <label>{t("Email address")}<input name="email" type="email" autoComplete="email" required placeholder={t("you@example.com")} /></label>
+          <label>{t("Password")}<input name="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={12} required placeholder={t("At least 12 characters")} /></label>
           {error && <p role="alert" className="form-error">{error}</p>}
-          <button className="button button-primary full" disabled={busy}>{busy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}<ArrowRight size={18}/></button>
+          <button className="button button-primary full" disabled={busy}>{busy ? t("Please wait…") : mode === "signup" ? t("Create account") : t("Sign in")}<ArrowRight size={18}/></button>
         </form>
-        <p className="switch-mode">{mode === "signup" ? "Already have an account?" : "New to GharFlow?"} <button type="button" onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(""); }}>{mode === "signup" ? "Sign in" : "Create account"}</button></p>
-        <p className="privacy-note"><LockKeyhole size={15}/> Your documents stay in your private household workspace.</p>
+        <div className="demo-action"><button type="button" className="button button-outline full" disabled={busy} onClick={()=>void demo()}>{t("Explore the synthetic demo")}</button><small>{t("Fictional documents · separate demo workspace · local processing")}</small></div>
+        <p className="switch-mode">{mode === "signup" ? t("Already have an account?") : t("New to GharFlow?")} <button type="button" onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(""); }}>{mode === "signup" ? t("Sign in") : t("Create account")}</button></p>
+        <p className="privacy-note"><LockKeyhole size={15}/> {t("Your documents stay in your private household workspace.")}</p>
       </div>
     </section>
   </main>;

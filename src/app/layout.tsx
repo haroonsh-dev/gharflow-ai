@@ -1,8 +1,9 @@
+import { t } from "@/lib/copy";
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GharFlow AI · Household energy clarity",
+  title: t("GharFlow AI · Household energy clarity"),
   description: "Review LESCO bills, track usage and keep evidence in one private place.",
 };
 

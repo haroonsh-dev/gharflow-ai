@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink, rm } from "node:fs/promises";
 import path from "node:path";
 import { rows } from "@/lib/db";
+import { extractionSchema, type Extraction, type ocrResponseSchema } from "./schemas";
+import type { z } from "zod";
 
 export type EvidenceKind = "bill" | "receipt" | "reading";
 export const MAX_BYTES = 8 * 1024 * 1024;
@@ -33,9 +35,15 @@ export async function saveEvidence(householdId: string, kind: EvidenceKind, file
   return { id, bytes, mime };
 }
 
-export async function loadEvidence(householdId: string, id: string): Promise<{ data: Buffer; mime: string; name: string } | null> {
-  const found = await rows<{ storage_key: string; mime_type: string; original_name: string }>(`SELECT storage_key,mime_type,original_name FROM evidence_files WHERE id=$1 AND household_id=$2`, [id, householdId]);
+export async function loadEvidence(householdId: string, id: string, page?: number): Promise<{ data: Buffer; mime: string; name: string } | null> {
+  const found = await rows<{ storage_key: string; mime_type: string; original_name: string; ocr_result: unknown }>(`SELECT storage_key,mime_type,original_name,ocr_result FROM evidence_files WHERE id=$1 AND household_id=$2`, [id, householdId]);
   if (!found[0]) return null;
+  if (page !== undefined) {
+    const result=extractionSchema.safeParse(found[0].ocr_result);
+    if(!result.success || !result.data.pages.some((preview)=>preview.page===page))return null;
+    const data=await readFile(/*turbopackIgnore: true*/ path.join(root(),householdId,`${id}-preview-${page}`));
+    return {data,mime:"image/png",name:"preview.png"};
+  }
   const data = await readFile(/*turbopackIgnore: true*/ path.join(root(), householdId, id));
   return { data, mime: found[0].mime_type, name: found[0].original_name };
 }
@@ -50,8 +58,19 @@ export async function removeUnusedEvidence(householdId: string, id: string): Pro
     AND NOT EXISTS (SELECT 1 FROM bills b WHERE b.evidence_file_id=e.id)
     AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.evidence_file_id=e.id)
     AND NOT EXISTS (SELECT 1 FROM meter_readings m WHERE m.evidence_file_id=e.id)
+    AND NOT EXISTS (SELECT 1 FROM cases c WHERE e.id=ANY(c.evidence_ids))
     RETURNING e.id`, [id, householdId]);
   if (!deleted[0]) return false;
-  await unlink(/*turbopackIgnore: true*/ path.join(root(), householdId, id));
+  await rm(/*turbopackIgnore: true*/ path.join(root(), householdId, id), {force:true});
+  for(const page of [1,2])await rm(/*turbopackIgnore: true*/ path.join(root(),householdId,`${id}-preview-${page}`),{force:true});
   return true;
+}
+
+export async function storeExtraction(householdId:string,id:string,result:z.infer<typeof ocrResponseSchema>):Promise<Extraction>{
+  const extraction:Extraction={candidates:result.candidates,pages:result.pages.map(({page,width,height,mime})=>({page,width,height,mime})),verifiedFormat:false};
+  try{
+    for(const page of result.pages){const bytes=Buffer.from(page.imageBase64,"base64");if(sniff(bytes)!=="image/png"||bytes.length>MAX_BYTES)throw new Error("Invalid preview");await writeFile(/*turbopackIgnore: true*/ path.join(root(),householdId,`${id}-preview-${page.page}`),bytes,{mode:0o600});}
+    await rows("UPDATE evidence_files SET ocr_result=$3 WHERE id=$1 AND household_id=$2",[id,householdId,JSON.stringify(extraction)]);
+  }catch(error){for(const page of [1,2])await rm(/*turbopackIgnore: true*/ path.join(root(),householdId,`${id}-preview-${page}`),{force:true});throw error;}
+  return extraction;
 }
