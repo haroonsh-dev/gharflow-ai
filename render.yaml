@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: gharflow-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.hosted
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: PILOT_MODE
+        value: "true"
+      - key: DEMO_ENABLED
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_SSL
+        value: "true"
+      - key: STORAGE_DRIVER
+        value: supabase
+      - key: SUPABASE_STORAGE_BUCKET
+        value: household-evidence
+      - key: HOUSEHOLD_LIMIT
+        value: "10"
+      - key: HOUSEHOLD_STORAGE_BYTES
+        value: "52428800"
+      - key: OCR_INTERNAL_TOKEN
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

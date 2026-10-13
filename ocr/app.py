@@ -14,8 +14,8 @@ from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 
 app = FastAPI(docs_url=None, redoc_url=None)
 MAX_BYTES = 8 * 1024 * 1024
-Image.MAX_IMAGE_PIXELS = 20_000_000
-slots = asyncio.Semaphore(2)
+Image.MAX_IMAGE_PIXELS = 12_000_000
+slots = asyncio.Semaphore(1)
 PATTERNS = {
     "reference_number": r"REFERENCE\s*(?:NO|NUMBER|#)?[\s:.]*([0-9](?:\s*[0-9]){13})(?![0-9])",
     "previous_reading": r"(?:PREVIOUS\s+READING|PREV\s+READING)[\s:.]*([0-9]{1,12}(?:\.[0-9]{1,3})?)",
@@ -68,19 +68,20 @@ def process_document(data: bytes, mime: str) -> dict:
         source = Path(directory) / "source"
         source.write_bytes(data)
         if mime == "application/pdf":
-            subprocess.run(["pdftoppm", "-f", "1", "-l", "2", "-scale-to", "2200", "-png", str(source), str(Path(directory)/"page")], check=True, timeout=20, capture_output=True)
+            subprocess.run(["pdftoppm", "-f", "1", "-l", "2", "-scale-to", "1400", "-png", str(source), str(Path(directory)/"page")], check=True, timeout=30, capture_output=True)
             inputs = sorted(Path(directory).glob("page-*.png"))
         else: inputs = [source]
         pages, candidates = [], {}
         for number, original in enumerate(inputs, 1):
             with Image.open(original) as image:
                 if image.width * image.height > Image.MAX_IMAGE_PIXELS: raise ValueError("Image dimensions exceed processing limit")
+                # Downsample before allocating EXIF/colour copies of a full camera image.
+                image.thumbnail((1400, 1400))
                 image = ImageOps.exif_transpose(image).convert("RGB")
-                image.thumbnail((2200, 2200))
                 width, height = image.size
                 preview = Path(directory)/f"preview-{number}.png"
                 image.save(preview, "PNG")
-            tsv = subprocess.run(["tesseract", str(preview), "stdout", "-l", "eng", "tsv"], check=True, timeout=15, capture_output=True, text=True).stdout
+            tsv = subprocess.run(["tesseract", str(preview), "stdout", "-l", "eng", "tsv"], check=True, timeout=35, capture_output=True, text=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"}).stdout
             for key, value in candidates_from_tsv(tsv, number, width, height).items(): candidates.setdefault(key, value)
             encoded = base64.b64encode(preview.read_bytes()).decode("ascii")
             if len(encoded) > 12_000_000: raise ValueError("Preview too large")

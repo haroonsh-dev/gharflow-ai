@@ -44,3 +44,7 @@ __pycache__/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!.env.operator.example
+*.enc
+/deletion-ledgers/
+/backups/

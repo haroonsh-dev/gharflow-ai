@@ -9,12 +9,15 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "format": "prettier --write src tests scripts/*.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "argon2": "^0.45.1",
     "lucide-react": "^1.55.0",
     "next": "16.4.0",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -29,6 +32,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "prettier": "^3.6.2",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

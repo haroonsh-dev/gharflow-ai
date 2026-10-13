@@ -1,34 +1,525 @@
 "use client";
 import { t } from "@/lib/copy";
-import { useState,type FormEvent } from "react";
-import { ArrowRight,UploadCloud } from "lucide-react";
+import { useState, useRef, type FormEvent } from "react";
+import { ArrowRight, UploadCloud } from "lucide-react";
 import type { Bill } from "@/lib/types";
 import type { Extraction } from "@/lib/schemas";
-import { api,json,Field,PageHead } from "./ui";
+import { api, json, Field, PageHead } from "./ui";
 import EvidencePreview from "./evidence-preview";
-const fields=[{key:"referenceNumber",label:t("Reference number"),type:"text",required:true,raw:"reference_number"},{key:"billMonth",label:t("Bill month"),type:"month",required:true},{key:"previousReading",label:t("Previous reading"),type:"number",raw:"previous_reading"},{key:"currentReading",label:t("Current reading"),type:"number",raw:"current_reading"},{key:"multiplier",label:t("Meter multiplier"),type:"number",required:true},{key:"billedUnits",label:t("Billed units (kWh)"),type:"number",raw:"billed_units"},{key:"totalAmount",label:t("Total amount (PKR)"),type:"number",required:true,raw:"total_amount"},{key:"dueDate",label:t("Due date"),type:"date"},{key:"meterIdentity",label:t("Meter identity / serial"),type:"text",raw:"meter_identity"},{key:"readingDate",label:t("Bill reading date"),type:"date",raw:"reading_date"}] as const;
-type Key=typeof fields[number]["key"];
-type Draft=Record<Key,string>;
-const blank:Draft={referenceNumber:"",billMonth:"",previousReading:"",currentReading:"",multiplier:"1",billedUnits:"",totalAmount:"",dueDate:"",meterIdentity:"",readingDate:""};
-export default function BillEntry({bill,bills,onDone,reload}:{bill:Bill|null;bills:Bill[];onDone:()=>void;reload:()=>Promise<void>}){
-  const [draft,setDraft]=useState<Draft>(()=>bill?Object.fromEntries(fields.map((field)=>[field.key,field.key==="billMonth"?bill.billMonth.slice(0,7):String(bill[field.key]??"")])) as Draft:blank);
-  const [evidenceId,setEvidenceId]=useState(bill?.evidenceFileId??null);
-  const [extraction,setExtraction]=useState<Extraction|null>(bill?.extraction??null);
-  const [status,setStatus]=useState<Bill["readingStatus"]>(bill?.readingStatus??"unknown");
-  const [meterType,setMeterType]=useState<Bill["meterType"]>(bill?.meterType??"unknown");
-  const [replaces,setReplaces]=useState("");const [selected,setSelected]=useState<string|null>(null);
-  const [busy,setBusy]=useState(false);const [stage,setStage]=useState("");const [error,setError]=useState("");const [notice,setNotice]=useState("");
-  async function discard(id:string|null){if(id&&id!==bill?.evidenceFileId)await api(`/api/files/${id}`,{method:"DELETE"});}
-  async function upload(file:File){setBusy(true);setError("");setStage(t("Saving document and reading its first two pages locally…"));
-    try{const body=new FormData();body.set("kind","bill");body.set("file",file);const result=await api<{evidenceFileId:string;extraction:Extraction|null;fields:Record<string,string>}>('/api/upload',{method:"POST",body});const previous=evidenceId;
-      setEvidenceId(result.evidenceFileId);setExtraction(result.extraction);setSelected(null);setDraft({...blank,billMonth:draft.billMonth});
-      const next:Partial<Draft>={};for(const field of fields){if("raw"in field&&result.fields[field.raw])next[field.key]=result.fields[field.raw];}setDraft((old)=>({...old,...next}));
-      setNotice(result.extraction?(Object.keys(result.fields).length? t("Select a field to highlight its source. Confirm every value before saving."):t("No supported bill fields were found. Keep the document as evidence and enter values manually.")):t("Document reading failed. The original is private and available; enter values manually."));
-      try{await discard(previous);}catch{setNotice(t("New document saved. Previous unused upload could not be removed; retry deletion from Settings or delete the household."));}
-    }catch(cause){setError(cause instanceof Error?cause.message:t("Upload failed"));}finally{setBusy(false);setStage("");}}
-  async function save(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError("");setStage(t("Saving confirmed fields and running evidence checks…"));
-    try{const number=(key:Key)=>draft[key]===""?null:Number(draft[key]);await api(bill?`/api/bills/${bill.id}`:"/api/bills",json({evidenceFileId:evidenceId,referenceNumber:draft.referenceNumber,billMonth:`${draft.billMonth}-01`,previousReading:number("previousReading"),currentReading:number("currentReading"),multiplier:number("multiplier"),billedUnits:number("billedUnits"),totalAmount:number("totalAmount"),dueDate:draft.dueDate||null,meterIdentity:draft.meterIdentity||null,readingDate:draft.readingDate||null,readingStatus:status,meterType,replacesBillId:replaces||null,confirmed:true},bill?"PUT":"POST"));await reload();onDone();}catch(cause){setError(cause instanceof Error?cause.message:t("Could not save bill"));}finally{setBusy(false);setStage("");}}
-  async function cancel(){setBusy(true);try{await discard(evidenceId);onDone();}catch(cause){setError(cause instanceof Error?cause.message:t("Could not remove unused document"));}finally{setBusy(false);}}
-  const alternatives=bills.filter((item)=>!item.supersededById&&item.id!==bill?.id&&item.referenceNumber===draft.referenceNumber&&item.billMonth.slice(0,7)===draft.billMonth);
-  return <><PageHead eyebrow={bill?t("EDIT BILL"):t("ADD A BILL")} title={t("Review the evidence together.")} description={t("Confirm source values before comparing bills and observations.")}/><div className="evidence-entry-grid"><section className="card evidence-column"><span className="eyebrow">{t("01 · SOURCE DOCUMENT")}</span><label className={`dropzone compact-drop ${evidenceId?"uploaded":""}`}><UploadCloud size={25}/><strong>{t("Choose a PDF or image")}</strong><span>{t("PDF, PNG or JPEG · up to 8 MB")}</span><input type="file" accept=".pdf,.png,.jpg,.jpeg" disabled={busy} onChange={(event)=>{const file=event.target.files?.[0];if(file)void upload(file);}}/></label><EvidencePreview id={evidenceId} extraction={extraction} selected={selected}/></section><section className="card"><span className="eyebrow">{t("02 · CONFIRMED VALUES")}</span><h2>{t("Check each field against the source")}</h2>{stage&&<p role="status" className="info-strip">{stage}</p>}{notice&&<p className="info-strip">{notice}</p>}{error&&<p className="form-error" role="alert">{error}</p>}<form onSubmit={save}><div className="form-grid">{fields.map((field)=>{const raw="raw"in field?field.raw:null;const candidate=raw?extraction?.candidates[raw]:undefined;return <div key={field.key}><Field label={field.label}><input type={field.type} required={"required"in field&&field.required} min={field.type==="number"?(field.key==="multiplier"?"0.001":"0"):undefined} step={field.type==="number"?"0.001":undefined} maxLength={field.key==="referenceNumber"?14:undefined} pattern={field.key==="referenceNumber"?"[0-9]{14}":undefined} value={draft[field.key]} onFocus={()=>setSelected(raw)} onChange={(event)=>{const value=event.currentTarget.value;setDraft((old)=>({...old,[field.key]:value}));}}/></Field>{candidate&&<button className="text-button source-button" type="button" onClick={()=>setSelected(raw)}>{t("Show OCR source ·")}{candidate.confidence??"?"}/100</button>}</div>;})}<Field label={t("Reading basis")}><select value={status} onChange={(event)=>setStatus(event.target.value as Bill["readingStatus"])}><option value="unknown">{t("Unknown — needs confirmation")}</option><option value="actual">{t("Actual meter reading")}</option><option value="estimated">{t("Estimated reading")}</option></select></Field><Field label={t("Meter arrangement")}><select value={meterType} onChange={(event)=>setMeterType(event.target.value as Bill["meterType"])}><option value="unknown">{t("Unknown")}</option><option value="conventional">{t("Conventional domestic meter")}</option><option value="unsupported">{t("Time-of-use / net billing / other")}</option></select></Field></div>{alternatives.length>0&&<Field label={t("Is this a revised bill?")}><select value={replaces} onChange={(event)=>setReplaces(event.target.value)}><option value="">{t("Keep both active for review")}</option>{alternatives.map((item)=><option value={item.id} key={item.id}>{t("Replace existing bill:")}{item.billedUnits??"?"} {t("kWh · PKR")}{item.totalAmount}</option>)}</select></Field>}<label className="confirmation-check"><input type="checkbox" required/>{t("I checked these values against the source or my own records.")}</label><div className="form-actions"><button type="button" disabled={busy} className="button button-outline" onClick={()=>void cancel()}>{t("Cancel")}</button><button disabled={busy} className="button button-primary">{t("Save confirmed bill")}<ArrowRight size={17}/></button></div></form></section></div></>;
+const fields = [
+  {
+    key: "referenceNumber",
+    label: t("Reference number"),
+    type: "text",
+    required: true,
+    raw: "reference_number",
+  },
+  { key: "billMonth", label: t("Bill month"), type: "month", required: true },
+  {
+    key: "previousReading",
+    label: t("Previous reading"),
+    type: "number",
+    raw: "previous_reading",
+  },
+  {
+    key: "currentReading",
+    label: t("Current reading"),
+    type: "number",
+    raw: "current_reading",
+  },
+  {
+    key: "multiplier",
+    label: t("Meter multiplier"),
+    type: "number",
+    required: true,
+  },
+  {
+    key: "billedUnits",
+    label: t("Billed units (kWh)"),
+    type: "number",
+    raw: "billed_units",
+  },
+  {
+    key: "totalAmount",
+    label: t("Total amount (PKR)"),
+    type: "number",
+    required: true,
+    raw: "total_amount",
+  },
+  { key: "dueDate", label: t("Due date"), type: "date" },
+  {
+    key: "meterIdentity",
+    label: t("Meter identity / serial"),
+    type: "text",
+    raw: "meter_identity",
+  },
+  {
+    key: "readingDate",
+    label: t("Bill reading date"),
+    type: "date",
+    raw: "reading_date",
+  },
+] as const;
+type Key = (typeof fields)[number]["key"];
+type Draft = Record<Key, string>;
+const blank: Draft = {
+  referenceNumber: "",
+  billMonth: "",
+  previousReading: "",
+  currentReading: "",
+  multiplier: "1",
+  billedUnits: "",
+  totalAmount: "",
+  dueDate: "",
+  meterIdentity: "",
+  readingDate: "",
+};
+function cachedDraft(
+  extraction: Extraction | null | undefined,
+): Partial<Draft> {
+  const draft: Partial<Draft> = {};
+  for (const field of fields)
+    if ("raw" in field && extraction?.candidates[field.raw])
+      draft[field.key] = extraction.candidates[field.raw].value;
+  return draft;
+}
+export default function BillEntry({
+  bill,
+  bills,
+  onDone,
+  reload,
+  source,
+}: {
+  bill: Bill | null;
+  bills: Bill[];
+  onDone: () => void;
+  reload: () => Promise<void>;
+  source?: {
+    id?: string;
+    draft?: Partial<Draft>;
+    extraction?: Extraction | null;
+  };
+}) {
+  const processingController = useRef<AbortController | null>(null);
+  const [draft, setDraft] = useState<Draft>(() =>
+    bill
+      ? (Object.fromEntries(
+          fields.map((field) => [
+            field.key,
+            field.key === "billMonth"
+              ? bill.billMonth.slice(0, 7)
+              : String(bill[field.key] ?? ""),
+          ]),
+        ) as Draft)
+      : { ...blank, ...cachedDraft(source?.extraction), ...source?.draft },
+  );
+  const [evidenceId, setEvidenceId] = useState(
+    bill?.evidenceFileId ?? source?.id ?? null,
+  );
+  const [extraction, setExtraction] = useState<Extraction | null>(
+    bill?.extraction ?? source?.extraction ?? null,
+  );
+  const [status, setStatus] = useState<Bill["readingStatus"]>(
+    bill?.readingStatus ?? "unknown",
+  );
+  const [meterType, setMeterType] = useState<Bill["meterType"]>(
+    bill?.meterType ?? "unknown",
+  );
+  const [replaces, setReplaces] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  async function discard(id: string | null) {
+    if (id && id !== bill?.evidenceFileId)
+      await api(`/api/files/${id}`, { method: "DELETE" });
+  }
+  async function process(id: string, applyFields = true) {
+    setStage(t("Processing document locally…"));
+    const controller = new AbortController();
+    processingController.current = controller;
+    const result = await api<{
+      extraction: Extraction | null;
+      fields: Record<string, string>;
+      ocrStatus: string;
+    }>(`/api/files/${id}/process`, {
+      method: "POST",
+      signal: controller.signal,
+    });
+    setExtraction(result.extraction);
+    setSelected(null);
+    if (applyFields) {
+      const next: Partial<Draft> = {};
+      for (const field of fields) {
+        if ("raw" in field && result.fields[field.raw])
+          next[field.key] = result.fields[field.raw];
+      }
+      setDraft((old) => {
+        const updated = { ...old };
+        for (const field of fields)
+          if (!old[field.key] && next[field.key])
+            updated[field.key] = next[field.key] ?? "";
+        return updated;
+      });
+    }
+    setNotice(
+      result.ocrStatus === "processing"
+        ? t(
+            "This document is already processing. Retry after 150 seconds if processing was interrupted.",
+          )
+        : result.extraction
+          ? Object.keys(result.fields).length
+            ? t(
+                "Select a field to highlight its source. Confirm every value before saving.",
+              )
+            : t(
+                "No supported bill fields were found. Keep the document as evidence and enter values manually.",
+              )
+          : t(
+              "Document reading failed. The original is private and available; enter values manually.",
+            ),
+    );
+  }
+  async function retry() {
+    if (!evidenceId) return;
+    setBusy(true);
+    setError("");
+    try {
+      await process(evidenceId, !bill);
+    } catch {
+      setNotice(
+        processingController.current?.signal.aborted
+          ? t(
+              "Your original is saved. Continue manually; document reading may finish in the background.",
+            )
+          : t(
+              "Processing is unavailable. Your document and entered values are preserved; use manual entry or retry.",
+            ),
+      );
+    } finally {
+      setBusy(false);
+      setStage("");
+    }
+  }
+  async function upload(file: File) {
+    setBusy(true);
+    setError("");
+    setStage(t("Uploading your private document…"));
+    try {
+      const body = new FormData();
+      body.set("kind", "bill");
+      body.set("file", file);
+      const result = await api<{ evidenceFileId: string }>("/api/upload", {
+        method: "POST",
+        body,
+      });
+      const previous = evidenceId;
+      setEvidenceId(result.evidenceFileId);
+      setExtraction(null);
+      setSelected(null);
+      try {
+        await discard(previous);
+      } catch {
+        setNotice(
+          t(
+            "Previous unused upload could not be removed. It remains available in Documents.",
+          ),
+        );
+      }
+      try {
+        await process(
+          result.evidenceFileId,
+          !bill &&
+            !draft.previousReading &&
+            !draft.currentReading &&
+            !draft.totalAmount,
+        );
+      } catch {
+        setNotice(
+          processingController.current?.signal.aborted
+            ? t(
+                "Your original is saved. Continue manually; document reading may finish in the background.",
+              )
+            : t(
+                "Processing is unavailable. Your document and entered values are preserved; use manual entry or retry.",
+              ),
+        );
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("Upload failed"));
+    } finally {
+      setBusy(false);
+      setStage("");
+    }
+  }
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setStage(t("Saving confirmed fields and running evidence checks…"));
+    try {
+      const number = (key: Key) =>
+        draft[key] === "" ? null : Number(draft[key]);
+      await api(
+        bill ? `/api/bills/${bill.id}` : "/api/bills",
+        json(
+          {
+            evidenceFileId: evidenceId,
+            referenceNumber: draft.referenceNumber,
+            billMonth: `${draft.billMonth}-01`,
+            previousReading: number("previousReading"),
+            currentReading: number("currentReading"),
+            multiplier: number("multiplier"),
+            billedUnits: number("billedUnits"),
+            totalAmount: number("totalAmount"),
+            dueDate: draft.dueDate || null,
+            meterIdentity: draft.meterIdentity || null,
+            readingDate: draft.readingDate || null,
+            readingStatus: status,
+            meterType,
+            replacesBillId: replaces || null,
+            confirmed: true,
+          },
+          bill ? "PUT" : "POST",
+        ),
+      );
+      await reload();
+      onDone();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : t("Could not save bill"),
+      );
+    } finally {
+      setBusy(false);
+      setStage("");
+    }
+  }
+  async function cancel() {
+    setBusy(true);
+    try {
+      await discard(evidenceId);
+      onDone();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : t("Could not remove unused document"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  const alternatives = bills.filter(
+    (item) =>
+      !item.supersededById &&
+      item.id !== bill?.id &&
+      item.referenceNumber === draft.referenceNumber &&
+      item.billMonth.slice(0, 7) === draft.billMonth,
+  );
+  return (
+    <>
+      <PageHead
+        eyebrow={bill ? t("EDIT BILL") : t("ADD A BILL")}
+        title={t("Review the evidence together.")}
+        description={t(
+          "Confirm source values before comparing bills and observations.",
+        )}
+      />
+      <div className="evidence-entry-grid">
+        <section className="card evidence-column">
+          <span className="eyebrow">{t("01 · SOURCE DOCUMENT")}</span>
+          <label
+            className={`dropzone compact-drop ${evidenceId ? "uploaded" : ""}`}
+          >
+            <UploadCloud size={25} />
+            <strong>{t("Choose a PDF or image")}</strong>
+            <span>{t("PDF, PNG or JPEG · up to 8 MB")}</span>
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              disabled={busy}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void upload(file);
+              }}
+            />
+          </label>
+          <EvidencePreview
+            id={evidenceId}
+            extraction={extraction}
+            selected={selected}
+          />
+          {evidenceId && (
+            <button
+              type="button"
+              className="button button-outline"
+              disabled={busy}
+              onClick={() => void retry()}
+            >
+              {t("Retry document processing")}
+            </button>
+          )}
+        </section>
+        <section className="card">
+          <span className="eyebrow">{t("02 · CONFIRMED VALUES")}</span>
+          <h2>{t("Check each field against the source")}</h2>
+          {stage && (
+            <p role="status" className="info-strip">
+              {stage}
+            </p>
+          )}
+          {busy &&
+            evidenceId &&
+            stage === t("Processing document locally…") && (
+              <button
+                className="button button-outline"
+                type="button"
+                onClick={() => {
+                  processingController.current?.abort();
+                  setBusy(false);
+                  setStage("");
+                  setNotice(
+                    t(
+                      "Your original is saved. Continue manually; document reading may finish in the background.",
+                    ),
+                  );
+                }}
+              >
+                {t("Continue manually")}
+              </button>
+            )}
+          {notice && <p className="info-strip">{notice}</p>}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <form onSubmit={save}>
+            <div className="form-grid">
+              {fields.map((field) => {
+                const raw = "raw" in field ? field.raw : null;
+                const candidate = raw ? extraction?.candidates[raw] : undefined;
+                return (
+                  <div key={field.key}>
+                    <Field label={field.label}>
+                      <input
+                        type={field.type}
+                        required={"required" in field && field.required}
+                        min={
+                          field.type === "number"
+                            ? field.key === "multiplier"
+                              ? "0.001"
+                              : "0"
+                            : undefined
+                        }
+                        step={
+                          field.type === "number"
+                            ? field.key === "totalAmount"
+                              ? "0.01"
+                              : "0.001"
+                            : undefined
+                        }
+                        maxLength={
+                          field.key === "referenceNumber" ? 14 : undefined
+                        }
+                        pattern={
+                          field.key === "referenceNumber"
+                            ? "[0-9]{14}"
+                            : undefined
+                        }
+                        value={draft[field.key]}
+                        onFocus={() => setSelected(raw)}
+                        onChange={(event) => {
+                          const value = event.currentTarget.value;
+                          setDraft((old) => ({ ...old, [field.key]: value }));
+                        }}
+                      />
+                    </Field>
+                    {candidate && (
+                      <button
+                        className="text-button source-button"
+                        type="button"
+                        onClick={() => setSelected(raw)}
+                      >
+                        {t("Show OCR source ·")}
+                        {candidate.confidence ?? "?"}/100
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              <Field label={t("Reading basis")}>
+                <select
+                  value={status}
+                  onChange={(event) =>
+                    setStatus(event.target.value as Bill["readingStatus"])
+                  }
+                >
+                  <option value="unknown">
+                    {t("Unknown — needs confirmation")}
+                  </option>
+                  <option value="actual">{t("Actual meter reading")}</option>
+                  <option value="estimated">{t("Estimated reading")}</option>
+                </select>
+              </Field>
+              <Field label={t("Meter arrangement")}>
+                <select
+                  value={meterType}
+                  onChange={(event) =>
+                    setMeterType(event.target.value as Bill["meterType"])
+                  }
+                >
+                  <option value="unknown">{t("Unknown")}</option>
+                  <option value="conventional">
+                    {t("Conventional domestic meter")}
+                  </option>
+                  <option value="unsupported">
+                    {t("Time-of-use / net billing / other")}
+                  </option>
+                </select>
+              </Field>
+            </div>
+            {alternatives.length > 0 && (
+              <Field label={t("Is this a revised bill?")}>
+                <select
+                  value={replaces}
+                  onChange={(event) => setReplaces(event.target.value)}
+                >
+                  <option value="">{t("Keep both active for review")}</option>
+                  {alternatives.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {t("Replace existing bill:")}
+                      {item.billedUnits ?? "?"} {t("kWh · PKR")}
+                      {item.totalAmount}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <label className="confirmation-check">
+              <input type="checkbox" required />
+              {t(
+                "I checked these values against the source or my own records.",
+              )}
+            </label>
+            <div className="form-actions">
+              <button
+                type="button"
+                disabled={busy}
+                className="button button-outline"
+                onClick={() => void cancel()}
+              >
+                {t("Cancel")}
+              </button>
+              <button disabled={busy} className="button button-primary">
+                {t("Save confirmed bill")}
+                <ArrowRight size={17} />
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </>
+  );
 }

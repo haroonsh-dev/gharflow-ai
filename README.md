@@ -1,37 +1,28 @@
 # GharFlow AI
 
-A local household electricity evidence workspace for LESCO domestic conventional meters. The main journey is **upload → inspect source → confirm values → compare dated records → open a case → export and track the outcome**.
+A private household electricity evidence platform for LESCO conventional domestic bills. Families upload bills, confirm extracted values, compare compatible meter records, investigate source differences, and keep a case with a downloadable evidence report.
 
-## Implemented capabilities
+The hosted product starts with empty records and invitation-only access. OCR uses local Python/Tesseract in the application container; there are no external AI calls. Original files and previews stay private. Findings do not establish utility error, verified payment posting, refunds, or official complaint submission.
 
-- Private accounts and household records in PostgreSQL.
-- Local Tesseract OCR with page previews, highlighted value regions, and confidence signals. Every saved bill requires user confirmation. Extracted values, corrections, and confirmation time are recorded separately.
-- Electricity connection grouping, meter identity, reading date, reading basis, and meter arrangement. Existing records retain an unknown status until reviewed.
-- Bill editing and same-month replacement records. Superseded bills are excluded from checks.
-- Comparisons require the right evidence: consecutive unique months, the same conventional meter and multiplier, and actual readings. Household observations are compared only on matching dates. Missing information produces an unavailable check.
-- Cases capture immutable calculation snapshots, original document references, notes, attachments, and user-reported status. Reports can be printed or saved as PDF from the browser.
-- Consumption targets in kWh from two compatible dated observations. No tariff-based rupee savings claim is made.
-- A separate synthetic demo workspace with reset controls and visible fictional-data labels.
+## Local setup
 
-The app does not establish a utility error, verified payment posting, a refund, live consumption, or official complaint submission. Real LESCO extraction coverage remains unverified: no redacted held-out real bill corpus has been supplied.
+Requirements: Node 24+, Docker Compose, and Python with Tesseract/Poppler for optional host development.
 
-## Run the complete stack
-
-1. Copy `.env.example` to `.env` and replace the two placeholders with independent long random values, such as strings generated with `openssl rand -hex 32`.
+1. Copy `.env.example` to `.env` and replace database password and OCR token with independent random values.
 2. Run `docker compose up --build -d --wait`.
-3. Open `http://localhost:3000` and choose **Explore the synthetic demo**, or create a private household account.
+3. Open `http://localhost:3000/login`.
+4. Configure an ignored `.env.local` with `DATABASE_URL=postgresql://gharflow:YOUR_URL_ENCODED_PASSWORD@127.0.0.1:5439/gharflow`. Generate an invitation using `node --env-file=.env.local scripts/invite.mjs household@example.com`.
+5. Use that email and invitation to sign up. Save the one-time recovery code before continuing.
 
-Compose starts PostgreSQL, the internal OCR service, and Next.js. The web container runs pending versioned SQL migrations at startup, protected by a database advisory lock. Source files and generated previews live in a private upload volume. `docker compose down` keeps the volumes; `docker compose down -v` permanently removes them.
+No documents are seeded. `demo/` contains explicitly synthetic **test fixtures**, excluded from the hosted image. The demo endpoint is disabled by default and always disabled in pilot mode.
 
-The web app and development database port are bound to localhost. Compose uses `COOKIE_SECURE=false` for local HTTP. Before hosted use, enable HTTPS and `COOKIE_SECURE=true`; disable `DEMO_ENABLED` if the demonstration endpoint should be unavailable. Public hosting also needs account recovery, abuse controls, backups, and operational monitoring.
+## Hosted packaging and free-tier check
 
-## Development
+```sh
+docker compose -f compose.yaml -f compose.hosted.yaml up --build -d --wait
+```
 
-Install Node dependencies with `npm ci`. Configure an untracked `.env.local` with `DATABASE_URL`, `OCR_URL`, `OCR_INTERNAL_TOKEN`, `UPLOAD_DIR`, and `COOKIE_SECURE=false`. The Compose database is available at localhost port 5439. Export `DATABASE_URL` before `npm run migrate`.
-
-For the OCR service, install Tesseract and Poppler, create a Python virtual environment, install `ocr/requirements.txt`, and run `uvicorn app:app --app-dir ocr --host 127.0.0.1 --port 8000` with `OCR_INTERNAL_TOKEN` exported. Then run `npm run dev`.
-
-English UI copy is collected in `src/lib/en.json`, accessed through `src/lib/copy.ts`. The shipped interface is English; a reviewed Urdu translation and RTL acceptance pass can be added later.
+This runs web and loopback OCR in one supervised container with a 512 MB memory limit and 0.1 CPU allocation. Local storage remains a Docker volume for this check; actual hosting uses private Supabase Storage. Follow [deployment instructions](docs/DEPLOYMENT.md) for Render and Supabase setup, invitations, encrypted backups, restoration, rollback, and operational limits.
 
 ## Verification
 
@@ -39,21 +30,18 @@ English UI copy is collected in `src/lib/en.json`, accessed through `src/lib/cop
 npm run typecheck
 npm run lint
 npm test
-npm run build
-.venv/bin/python -m unittest discover -s ocr -p 'test_*.py'
-REQUIRE_OCR=true node scripts/smoke.mjs
+.venv/bin/python -m unittest discover -s ocr -p 'test*.py'
+TEST_BASE_URL=http://127.0.0.1:3000 REQUIRE_OCR=true node --env-file=.env.local scripts/smoke.mjs
+node --env-file=.env.local scripts/test-operations.mjs
+node scripts/check-resources.mjs
 ```
 
-The smoke script expects the running app at `http://127.0.0.1:3000`; override with `TEST_BASE_URL`. It creates disposable test accounts and checks OCR/preview, correction provenance, dated observations, case snapshots/export, edits/replacements, tenant isolation, manual recovery, separate demo reset, and deletion. `REQUIRE_OCR=true` requires a working local OCR provider instead of silently accepting fallback. These are synthetic pipeline checks, not real bill accuracy measurements.
+Smoke tests create disposable invited accounts and delete them. They use synthetic files only as test inputs. Operations tests create isolated temporary databases and encrypted fixture archives, verify restoration and deletion exclusions, then remove them. See [verification record](docs/VERIFICATION.md) for completed checks and remaining gates.
 
-Use the evaluator in `ocr/evaluate.py` for a declared held-out redacted corpus. It reports exact field matches, processing time, and human correction time only when measured durations are supplied. The shipped synthetic manifest is labeled `pipeline_fixture`; it cannot establish general LESCO performance.
+## Evidence boundaries
 
-## Demonstration
+LESCO extraction accuracy is **unverified** until unseen redacted real documents, including consecutive months, are evaluated. OCR confidence is a processing signal, not proof of accuracy. Users confirm fields before saving. Missing dates, meter identity, unknown/estimated readings, unsupported arrangements, duplicates, and gaps produce explicit unavailable comparisons.
 
-Follow [the three-minute walkthrough](docs/DEMO.md). The demo contains a normal bill, a 40 kWh arithmetic difference, two dated observations, and a document without supported fields for manual recovery. Use Settings to reset only the synthetic workspace. Real household data is never used as demo seed data.
+Consumption planning uses compatible dated readings and kWh targets. It does not predict future consumption or calculate tariff savings. Case outcomes and checklists remain user reported; editing a bill cannot rewrite an existing case snapshot.
 
-## Architecture
-
-Next.js owns authentication, validated routes, PostgreSQL data, and owner-scoped private files. FastAPI processes bounded document jobs in worker threads, with at most two concurrent jobs and two rendered PDF pages. It returns candidate fields and raster previews and does not retain uploaded files. No external AI provider receives document content.
-
-Case calculations and source references are captured on the server from current findings, rather than accepted from the client. Editing a source record does not rewrite a case snapshot; evidence captured by a case survives bill deletion and is removed when the household is deleted. Case status and outcomes remain user reported.
+English copy lives in `src/lib/en.json`; Urdu translation and Unicode PDF fonts remain future work. The current English PDF explicitly marks unsupported characters instead of silently dropping notes.

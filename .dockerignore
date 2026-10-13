@@ -6,3 +6,10 @@ node_modules
 .venv
 private_uploads
 *.log
+.env*
+**/.env*
+!.env.example
+!.env.operator.example
+backups
+deletion-ledgers
+*.enc

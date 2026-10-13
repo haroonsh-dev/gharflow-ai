@@ -1,16 +1,251 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyze,consumptionPlan,type BillRecord,type ReadingRecord } from "../src/lib/findings";
-const bill=(changes:Partial<BillRecord>={}):BillRecord=>({id:"one",referenceNumber:"12345678901234",billMonth:"2026-08-01",previousReading:100,currentReading:200,multiplier:1,billedUnits:100,totalAmount:5000,dueDate:null,meterIdentity:"M1",readingDate:"2026-08-10",readingStatus:"actual",meterType:"conventional",supersededById:null,...changes});
-const reading=(changes:Partial<ReadingRecord>={}):ReadingRecord=>({id:"r1",referenceNumber:"12345678901234",meterIdentity:"M1",readingDate:"2026-08-10",readingValue:200,multiplier:1,meterType:"conventional",...changes});
-const codes=(bills:BillRecord[],readings:ReadingRecord[]=[])=>analyze(bills,[],readings).filter((finding)=>finding.kind==="review").map((finding)=>finding.id.split(":")[1]);
-test("normal actual bill produces no review flags",()=>assert.deepEqual(codes([bill()],[reading()]),[]));
-test("arithmetic discrepancy preserves calculation",()=>{const finding=analyze([bill({billedUnits:120})],[]).find((item)=>item.id==="one:units");assert.match(finding?.detail??"",/100\.00.*120\.00/);assert.ok(finding?.evidence.some((value)=>value.includes("Difference 20")));});
-test("continuity requires consecutive months",()=>{assert.ok(codes([bill(),bill({id:"two",billMonth:"2026-09-01",previousReading:220,currentReading:300,billedUnits:80})]).includes("continuity"));assert.ok(!codes([bill(),bill({id:"two",billMonth:"2026-10-01",previousReading:220,currentReading:300,billedUnits:80})]).includes("continuity"));});
-test("meter changes, estimates and unknown legacy records suppress comparisons",()=>{for(const changes of [{meterIdentity:"M2"},{readingStatus:"estimated" as const},{readingStatus:"unknown" as const},{meterIdentity:null},{meterType:"unsupported" as const}])assert.ok(!codes([bill(),bill({id:"two",billMonth:"2026-09-01",previousReading:220,currentReading:300,billedUnits:80,...changes})]).includes("continuity"));assert.ok(!codes([bill({readingStatus:"estimated",billedUnits:120})]).includes("units"));});
-test("replacements exclude old versions and duplicate months block continuity",()=>{const corrected=bill({id:"new",billedUnits:100});assert.deepEqual(codes([bill({billedUnits:120,supersededById:"new"}),corrected]),[]);assert.ok(codes([bill(),bill({id:"duplicate"})]).includes("duplicate"));assert.ok(!codes([bill(),bill({id:"duplicate"}),bill({id:"next",billMonth:"2026-09-01",previousReading:210,currentReading:310})]).includes("continuity"));});
-test("connections stay separate",()=>assert.ok(!codes([bill(),bill({id:"other",referenceNumber:"99999999999999",billMonth:"2026-09-01",previousReading:220,currentReading:320})]).includes("continuity")));
-test("observation comparison needs exact date, identity, connection and multiplier",()=>{assert.ok(codes([bill()],[reading({readingValue:210})]).includes("observation"));for(const changes of [{readingDate:"2026-08-11"},{meterIdentity:"M2"},{referenceNumber:"99999999999999"},{multiplier:2},{meterType:"unknown" as const}])assert.ok(!codes([bill()],[reading({readingValue:210,...changes})]).includes("observation"));assert.ok(!codes([bill()],[reading({readingValue:210}),reading({id:"r2",readingValue:210})]).includes("observation"));});
-test("reset readings never imply negative consumption",()=>{assert.ok(!codes([bill({currentReading:50})]).includes("units"));assert.equal(consumptionPlan([reading(),reading({id:"r2",readingDate:"2026-08-20",readingValue:50})],"12345678901234","M1",10),null);});
-test("consumption target needs two compatible dates, excludes other connections",()=>{const result=consumptionPlan([reading(),reading({id:"r2",readingDate:"2026-08-20",readingValue:250}),reading({id:"other",referenceNumber:"99999999999999",readingDate:"2026-08-21",readingValue:9999})],"12345678901234","M1",20);assert.equal(result?.dailyKwh,5);assert.equal(result?.targetDailyKwh,4);assert.equal(consumptionPlan([reading()],"12345678901234","M1",10),null);assert.equal(consumptionPlan([reading(),reading({id:"r2",readingDate:"2026-08-20",readingValue:250,multiplier:2})],"12345678901234","M1",10),null);});
-test("receipt comparison does not verify posting",()=>{const finding=analyze([bill()],[{billId:"one",amount:4500,paidAt:"2026-08-18"}]).find((item)=>item.id==="one:payment");assert.match(finding?.detail??"",/does not verify utility posting/);});
+import {
+  analyze,
+  consumptionPlan,
+  type BillRecord,
+  type ReadingRecord,
+} from "../src/lib/findings";
+const bill = (changes: Partial<BillRecord> = {}): BillRecord => ({
+  id: "one",
+  referenceNumber: "12345678901234",
+  billMonth: "2026-08-01",
+  previousReading: 100,
+  currentReading: 200,
+  multiplier: 1,
+  billedUnits: 100,
+  totalAmount: 5000,
+  dueDate: null,
+  meterIdentity: "M1",
+  readingDate: "2026-08-10",
+  readingStatus: "actual",
+  meterType: "conventional",
+  supersededById: null,
+  ...changes,
+});
+const reading = (changes: Partial<ReadingRecord> = {}): ReadingRecord => ({
+  id: "r1",
+  referenceNumber: "12345678901234",
+  meterIdentity: "M1",
+  readingDate: "2026-08-10",
+  readingValue: 200,
+  multiplier: 1,
+  meterType: "conventional",
+  ...changes,
+});
+const codes = (bills: BillRecord[], readings: ReadingRecord[] = []) =>
+  analyze(bills, [], readings)
+    .filter((finding) => finding.kind === "review")
+    .map((finding) => finding.id.split(":")[1]);
+test("normal actual bill produces no review flags", () =>
+  assert.deepEqual(codes([bill()], [reading()]), []));
+test("arithmetic discrepancy preserves calculation", () => {
+  const finding = analyze([bill({ billedUnits: 120 })], []).find(
+    (item) => item.id === "one:units",
+  );
+  assert.match(finding?.detail ?? "", /100\.00.*120\.00/);
+  assert.ok(finding?.evidence.some((value) => value.includes("Difference 20")));
+});
+test("continuity requires consecutive months", () => {
+  assert.ok(
+    codes([
+      bill(),
+      bill({
+        id: "two",
+        billMonth: "2026-09-01",
+        previousReading: 220,
+        currentReading: 300,
+        billedUnits: 80,
+      }),
+    ]).includes("continuity"),
+  );
+  assert.ok(
+    !codes([
+      bill(),
+      bill({
+        id: "two",
+        billMonth: "2026-10-01",
+        previousReading: 220,
+        currentReading: 300,
+        billedUnits: 80,
+      }),
+    ]).includes("continuity"),
+  );
+});
+test("meter changes, estimates and unknown legacy records suppress comparisons", () => {
+  for (const changes of [
+    { meterIdentity: "M2" },
+    { readingStatus: "estimated" as const },
+    { readingStatus: "unknown" as const },
+    { meterIdentity: null },
+    { meterType: "unsupported" as const },
+  ])
+    assert.ok(
+      !codes([
+        bill(),
+        bill({
+          id: "two",
+          billMonth: "2026-09-01",
+          previousReading: 220,
+          currentReading: 300,
+          billedUnits: 80,
+          ...changes,
+        }),
+      ]).includes("continuity"),
+    );
+  assert.ok(
+    !codes([bill({ readingStatus: "estimated", billedUnits: 120 })]).includes(
+      "units",
+    ),
+  );
+});
+test("replacements exclude old versions and duplicate months block continuity", () => {
+  const corrected = bill({ id: "new", billedUnits: 100 });
+  assert.deepEqual(
+    codes([bill({ billedUnits: 120, supersededById: "new" }), corrected]),
+    [],
+  );
+  assert.ok(codes([bill(), bill({ id: "duplicate" })]).includes("duplicate"));
+  assert.ok(
+    !codes([
+      bill(),
+      bill({ id: "duplicate" }),
+      bill({
+        id: "next",
+        billMonth: "2026-09-01",
+        previousReading: 210,
+        currentReading: 310,
+      }),
+    ]).includes("continuity"),
+  );
+});
+test("connections stay separate", () =>
+  assert.ok(
+    !codes([
+      bill(),
+      bill({
+        id: "other",
+        referenceNumber: "99999999999999",
+        billMonth: "2026-09-01",
+        previousReading: 220,
+        currentReading: 320,
+      }),
+    ]).includes("continuity"),
+  ));
+test("observation comparison needs exact date, identity, connection and multiplier", () => {
+  assert.ok(
+    codes([bill()], [reading({ readingValue: 210 })]).includes("observation"),
+  );
+  for (const changes of [
+    { readingDate: "2026-08-11" },
+    { meterIdentity: "M2" },
+    { referenceNumber: "99999999999999" },
+    { multiplier: 2 },
+    { meterType: "unknown" as const },
+  ])
+    assert.ok(
+      !codes([bill()], [reading({ readingValue: 210, ...changes })]).includes(
+        "observation",
+      ),
+    );
+  assert.ok(
+    !codes(
+      [bill()],
+      [
+        reading({ readingValue: 210 }),
+        reading({ id: "r2", readingValue: 210 }),
+      ],
+    ).includes("observation"),
+  );
+});
+test("reset readings never imply negative consumption", () => {
+  assert.ok(!codes([bill({ currentReading: 50 })]).includes("units"));
+  assert.equal(
+    consumptionPlan(
+      [
+        reading(),
+        reading({ id: "r2", readingDate: "2026-08-20", readingValue: 50 }),
+      ],
+      "12345678901234",
+      "M1",
+      10,
+    ),
+    null,
+  );
+});
+test("consumption target needs two compatible dates, excludes other connections", () => {
+  const result = consumptionPlan(
+    [
+      reading(),
+      reading({ id: "r2", readingDate: "2026-08-20", readingValue: 250 }),
+      reading({
+        id: "other",
+        referenceNumber: "99999999999999",
+        readingDate: "2026-08-21",
+        readingValue: 9999,
+      }),
+    ],
+    "12345678901234",
+    "M1",
+    20,
+  );
+  assert.equal(result?.dailyKwh, 5);
+  assert.equal(result?.targetDailyKwh, 4);
+  assert.equal(consumptionPlan([reading()], "12345678901234", "M1", 10), null);
+  assert.equal(
+    consumptionPlan(
+      [
+        reading(),
+        reading({
+          id: "r2",
+          readingDate: "2026-08-20",
+          readingValue: 250,
+          multiplier: 2,
+        }),
+      ],
+      "12345678901234",
+      "M1",
+      10,
+    ),
+    null,
+  );
+});
+test("receipt comparison does not verify posting", () => {
+  const finding = analyze(
+    [bill()],
+    [{ billId: "one", amount: 4500, paidAt: "2026-08-18" }],
+  ).find((item) => item.id === "one:payment");
+  assert.match(finding?.detail ?? "", /does not verify utility posting/);
+});
+
+test("unknown arrangements still detect duplicate periods", () => {
+  const first = bill({ id: "unknown-a", meterType: "unknown" });
+  const second = { ...first, id: "unknown-b" };
+  assert.ok(
+    analyze([first, second], []).some(
+      (finding) => finding.code === "duplicate",
+    ),
+  );
+});
+
+test("unavailable monthly comparisons explain meter metadata rather than asking for another bill", () => {
+  const records = [
+    bill(),
+    bill({ id: "next", billMonth: "2026-09-01", meterIdentity: "M2" }),
+  ];
+  const finding = analyze(records, []).find(
+    (item) => item.id === "next:comparison",
+  );
+  assert.equal(finding?.unavailableReason, "meter_metadata");
+  assert.deepEqual(finding?.relatedBillIds, ["one"]);
+});
+
+test("manual discrepancies explicitly identify the missing original", () => {
+  const finding = analyze(
+    [bill({ evidenceFileId: null, billedUnits: 120 })],
+    [],
+  ).find((item) => item.code === "units");
+  assert.ok(
+    finding?.missing.includes("Original bill document is not attached"),
+  );
+});

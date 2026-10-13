@@ -13,7 +13,7 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 COPY --from=build /app/db ./db
-COPY --from=build /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=build /app/scripts/migrate.mjs /app/scripts/database-config.mjs ./scripts/
 COPY --from=build /app/demo ./demo
 RUN mkdir -p /data/uploads && chown node:node /data/uploads
 USER node

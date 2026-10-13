@@ -1,25 +1,30 @@
-# Hackathon upgrade verification
+# Invitation-only pilot verification
 
-Verified locally on 2026-10-13. These checks establish a runnable local workflow; they do not establish production hosting, utility integration, or real LESCO extraction accuracy.
+Verified locally on 2026-10-13. This record distinguishes the tested release from cloud deployment and real LESCO extraction accuracy.
 
 ## Completed checks
 
-- TypeScript typecheck and ESLint passed.
-- Ten deterministic rule tests passed: normal records, arithmetic discrepancies, missing months, meter changes, estimated and unknown readings, replacements, duplicates, separate connections, exact observation matches, meter resets, consumption targets, and receipt wording.
-- Three Python tests passed for extraction, signatures, token regions, and confidence handling.
-- Fresh-database migrations 001, 002, and 003 applied successfully in an isolated temporary database.
-- Next.js production build and both Docker images built successfully. PostgreSQL, web, and internal OCR services started with Docker Compose.
-- `REQUIRE_OCR=true node scripts/smoke.mjs` passed against the production Docker web service. It exercises account creation, synthetic PDF OCR and private previews, correction provenance, observations and receipts, case snapshots and reports, edits and replacements, cross-household denial, manual recovery, isolated demo reset, and deletion.
-- Browser checks exercised the separate synthetic demo, field-source highlighting, case creation, saved notes and status, printable report contents, and an unreadable synthetic upload saved through manual entry.
-- The synthetic pipeline manifest matched all ten declared fields across its two fictional documents. This is a fixture result, not a held-out LESCO benchmark. Human correction time was not measured.
+- TypeScript typecheck and ESLint passed; 21 TypeScript tests and four Python tests passed.
+- Tests cover arithmetic, gaps, replacements, meter changes, estimated readings, separate connections, exact observations, correction provenance, unavailable comparisons, input precision, bounded request bodies, private storage, provider failures, validated checklists, and paginated PDF reports.
+- Fresh isolated databases applied migrations 001–006. Encrypted streaming backup/restore passed, including wrong-passphrase rejection, deleted-household exclusions, retained private files/replacement links, session revocation, and database RLS access denial.
+- Production Next.js build and the supervised web/Python Docker image passed. Synthetic fixtures are absent from the hosted runtime image.
+- Authenticated production-container smoke tests exercise invitation expiry/reuse/email binding, signup, login, recovery-code rotation and session revocation, upload, private preview, correction, observations, receipts, investigation checklists, immutable snapshots, PDF download, replacement bills, cross-household denial, interrupted OCR retry, quota exhaustion, manual recovery, disabled demo creation, and deletion.
+- Browser acceptance used an invited, non-demo account starting with empty records. Signup and recovery acknowledgement, original-document highlighting, correction retained after retry, observation and payment entry, replacement bill saving, case notes/status/checklists, and PDF download were checked. Disposable test data and its account were subsequently deleted. The bill files used for testing are explicitly synthetic, not real customer documents.
+- Actual Chrome viewports measured 390/390 and 768/768 pixels for viewport/document width. Keyboard navigation, mobile menu focus, Escape dismissal, and offscreen inert navigation were checked.
+- A 12-megapixel image and the full API journey ran in a local ARM64 container capped at 512 MiB and 0.1 CPU, without an OOM kill. After raster-copy optimization, the final release check measured a kernel peak of 327.6 MiB (an earlier isolated run measured 263.3 MiB). This is local constrained-resource evidence; Render's actual AMD64 instance remains untested.
+- Runtime npm audit reported zero vulnerabilities. Full audit reported five development-only dependency advisories inherited through the Next ESLint/fast-glob/micromatch/braces chain (GHSA-vfj7-8cjw-p6xm). No compatible patched braces release was available; linting was retained and no forced framework downgrade was applied.
 
-## Remaining verification
+## Cloud deployment blocked
 
-- Evaluate unseen redacted LESCO bills, including consecutive months, and receipts. Report accuracy and measured correction time only for that dataset.
-- A mobile viewport override did not take effect in the available in-app browser (it remained 1280 pixels wide). Mobile CSS exists, but narrow-screen browser acceptance remains unverified.
-- The browser checks above use the demo entry point; signup, payment entry, cross-account denial, and deletion were verified through the authenticated API smoke test.
-- Report rendering and its print control were inspected. Saving a PDF through a native print dialog was not automated.
-- Production deployment, backup/restore, operational monitoring, and an official hackathon rubric remain outside this local release.
+Render requires the user to sign in. Supabase's New Project page reports that the account's two active free-project slots are full. The operator must select a project to pause or provide an existing project dedicated to GharFlow. No unrelated project was modified. Secure deployment configuration has not been supplied.
+
+Accordingly, real Supabase pooler TLS/storage integration, Render HTTPS, persistence across cloud redeployment, and hosted end-to-end acceptance remain unverified. Provider error handling was tested with mocks; local private persistence was tested with real filesystem objects. There is no claimed live hosted URL.
+
+## Evidence boundaries
+
+Unseen redacted LESCO bills, a consecutive-month pair, and receipts are still needed for extraction evaluation. Neither real field accuracy nor human correction time has been measured. OCR confidence never establishes accuracy. Outcomes and checklists remain user reported. No utility integration, automatic complaint delivery, live consumption, verified payment posting, or refund claim is implemented.
+
+The current PDF uses English standard fonts and explicitly marks unsupported Unicode characters; reviewed Urdu copy and embedded Unicode fonts remain future work.
 
 ## Reproduce
 
@@ -28,8 +33,10 @@ npm run typecheck
 npm run lint
 npm test
 .venv/bin/python -m unittest discover -s ocr -p 'test*.py'
-docker compose up --build -d --wait
-REQUIRE_OCR=true node scripts/smoke.mjs
+node --env-file=.env.local scripts/test-operations.mjs
+docker compose -f compose.yaml -f compose.hosted.yaml up --build -d --wait
+TEST_BASE_URL=http://127.0.0.1:3000 REQUIRE_OCR=true node --env-file=.env.local scripts/smoke.mjs
+node scripts/check-resources.mjs
 ```
 
-The smoke test creates disposable accounts and deletes their records and files at completion. It does not reset existing households. Follow `docs/DEMO.md` for the three-minute presentation.
+Smoke tests delete only their disposable invited accounts. Operations tests use temporary databases and encrypted archives. Existing households are not reset. See DEPLOYMENT.md for secure cloud setup, invitations, backups, restoration, and rollback.

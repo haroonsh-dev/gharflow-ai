@@ -1,0 +1,27 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.hosted
+    mem_limit: 512m
+    cpus: 0.1
+    environment:
+      OCR_URL: http://127.0.0.1:8000
+      DEMO_ENABLED: "false"
+      PILOT_MODE: "false"
+      HOUSEHOLD_LIMIT: "10"
+    depends_on: !override
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/ocr/bin/python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/api/health', timeout=10)",
+        ]
+      interval: 10s
+      timeout: 12s
+      retries: 20
+      start_period: 60s
