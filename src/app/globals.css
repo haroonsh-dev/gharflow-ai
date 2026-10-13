@@ -2560,3 +2560,222 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Investigation ledger and private record correction. */
+.investigation-timeline,
+.comparison-card {
+  margin-bottom: 20px;
+}
+.month-ledger {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.ledger-month {
+  border: 1px solid #dce5dc;
+  border-radius: 10px;
+  padding: 17px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.ledger-month > span {
+  font-size: 11px;
+  color: #607568;
+}
+.ledger-month > strong {
+  font-size: 14px;
+}
+.ledger-month small {
+  font-size: 11px;
+  color: #607568;
+}
+.ledger-month.missing {
+  border-style: dashed;
+  background: #faf9f3;
+}
+.ledger-month.duplicate {
+  background: #fff6e8;
+  border-color: #e7cfaa;
+}
+.ledger-month .text-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+  min-height: 36px;
+  font-size: 12px;
+}
+.comparison-table-wrap {
+  overflow: auto;
+  margin: 22px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.comparison-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.comparison-table th,
+.comparison-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.comparison-table thead {
+  background: #f1f6ed;
+}
+.comparison-table thead th {
+  vertical-align: top;
+}
+.comparison-table tbody th {
+  font-weight: 500;
+  color: #53685c;
+  width: 34%;
+}
+.comparison-table .text-button {
+  display: block;
+  font-size: 11px;
+  margin-top: 7px;
+}
+.comparison-deltas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.comparison-deltas > div {
+  background: #f7f9f4;
+  border: 1px solid #e3e8de;
+  border-radius: 10px;
+  padding: 19px;
+}
+.comparison-deltas small,
+.comparison-deltas span {
+  display: block;
+  color: #5b6e60;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.comparison-deltas strong {
+  display: block;
+  font-size: 23px;
+  margin: 10px 0;
+  font-variant-numeric: tabular-nums;
+}
+.comparison-eligibility {
+  border: 1px solid #cde1c6;
+  border-radius: 10px;
+  padding: 20px;
+  background: #f0f7eb;
+  color: #345b39;
+}
+.comparison-eligibility.unavailable {
+  border-color: #ead9b8;
+  background: #fffaef;
+  color: #735830;
+}
+.comparison-eligibility h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+.comparison-eligibility p,
+.comparison-eligibility li {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.comparison-eligibility ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+}
+.record-actions button {
+  min-height: 44px;
+  font-size: 11px;
+}
+.record-editor {
+  width: min(640px, calc(100% - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px;
+  color: var(--ink);
+}
+.record-editor::backdrop {
+  background: #122c23a3;
+}
+.record-editor h2 {
+  margin: 0;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+.record-editor > p {
+  font-size: 13px;
+}
+.revision-history {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  font-size: 12px;
+}
+.revision-history summary {
+  cursor: pointer;
+  min-height: 32px;
+}
+.revision-history article {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+.revision-history small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.revision-history li {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .comparison-deltas {
+    grid-template-columns: 1fr;
+  }
+  .comparison-table th,
+  .comparison-table td {
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+  .record-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .simple-list > div {
+    flex-wrap: wrap;
+  }
+  .record-editor {
+    padding: 21px;
+  }
+  .record-editor .form-actions {
+    flex-direction: row;
+  }
+  .record-editor .form-actions .button {
+    width: auto;
+  }
+}
+.sidebar {
+  overflow-y: auto;
+}
+
+.record-editor,
+.confirm-dialog {
+  margin: auto;
+}

@@ -56,6 +56,7 @@ export async function overview(
     read<{
       id: string;
       bill_id: string;
+      revision: number;
       amount: string;
       paid_at: string;
       channel: string;
@@ -71,6 +72,7 @@ export async function overview(
       meter_identity: string | null;
       reading_date: string;
       reading_value: string;
+      revision: number;
       multiplier: string;
       meter_type: Reading["meterType"];
       note: string;
@@ -139,6 +141,7 @@ export async function overview(
   const payments: Payment[] = paymentRows.map((r) => ({
     id: r.id,
     billId: r.bill_id,
+    revision: r.revision,
     amount: Number(r.amount),
     paidAt: r.paid_at,
     channel: r.channel,
@@ -151,6 +154,7 @@ export async function overview(
     meterIdentity: r.meter_identity,
     readingDate: r.reading_date,
     readingValue: Number(r.reading_value),
+    revision: r.revision,
     multiplier: Number(r.multiplier),
     meterType: r.meter_type,
     note: r.note,

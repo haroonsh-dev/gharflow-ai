@@ -95,6 +95,16 @@ try {
     { ...envFor(source), HOUSEHOLD_LIMIT: "3" },
     false,
   );
+  for (const house of [keptHouse, deletedHouse])
+    await sourceDb.query(
+      "INSERT INTO record_changes(household_id,record_kind,record_id,action,before_record,after_record) VALUES($1,'payment',$2,'updated',$3,$4)",
+      [
+        house,
+        billId,
+        JSON.stringify({ amount: "100.00" }),
+        JSON.stringify({ amount: "200.00" }),
+      ],
+    );
   const archive = path.join(directory, "backup.enc");
   run("scripts/backup.mjs", ["backup", archive], envFor(source));
   assert.ok(!(await readFile(archive, "utf8")).includes("keep@example.test"));
@@ -147,9 +157,33 @@ try {
   await targetDb.query("BEGIN");
   await targetDb.query("CREATE ROLE gharflow_ops_browser NOLOGIN");
   await targetDb.query("GRANT USAGE ON SCHEMA public TO gharflow_ops_browser");
-  await targetDb.query("GRANT SELECT ON users TO gharflow_ops_browser");
+  assert.equal(
+    (
+      await targetDb.query(
+        "SELECT count(*) FROM record_changes WHERE household_id=$1",
+        [keptHouse],
+      )
+    ).rows[0].count,
+    "1",
+  );
+  assert.equal(
+    (
+      await targetDb.query(
+        "SELECT count(*) FROM record_changes WHERE household_id=$1",
+        [deletedHouse],
+      )
+    ).rows[0].count,
+    "0",
+  );
+  await targetDb.query(
+    "GRANT SELECT ON users, record_changes TO gharflow_ops_browser",
+  );
   await targetDb.query("SET LOCAL ROLE gharflow_ops_browser");
   assert.equal((await targetDb.query("SELECT * FROM users")).rows.length, 0);
+  assert.equal(
+    (await targetDb.query("SELECT * FROM record_changes")).rows.length,
+    0,
+  );
   await targetDb.query("ROLLBACK");
   console.log(
     "Passed: fresh migrations, encrypted backup, wrong-key rejection, restore with deletion exclusions, retained replacement links/files, revoked sessions, database RLS denial.",

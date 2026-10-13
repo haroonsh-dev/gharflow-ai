@@ -130,12 +130,14 @@ export function Confirmation({
   onConfirm,
   onCancel,
   busy = false,
+  error,
 }: {
   title: string;
   description: string;
   onConfirm: () => void;
   onCancel: () => void;
   busy?: boolean;
+  error?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -169,6 +171,11 @@ export function Confirmation({
         </button>
       </div>
       <p>{description}</p>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="form-actions">
         <button
           className="button button-outline"

@@ -380,6 +380,133 @@ try {
   assert.equal(exported.status, 200);
   assert.equal(exported.result.subarray(0, 5).toString(), "%PDF-");
   assert.ok((await PDFDocument.load(exported.result)).getPageCount() > 0);
+  const observed = data.readings.find((item) => item.meterIdentity === "M1");
+  const payment = data.payments.find((item) => item.billId === billId);
+  assert.equal(observed.revision, 1);
+  assert.equal(payment.revision, 1);
+  for (const [kind, record, body] of [
+    [
+      "readings",
+      observed,
+      {
+        ...reading,
+        readingValue: 200,
+        evidenceFileId: observed.evidenceFileId,
+      },
+    ],
+    [
+      "payments",
+      payment,
+      {
+        billId,
+        amount: 5000,
+        paidAt: "2026-09-18",
+        channel: "bank",
+        reference: "corrected test",
+        evidenceFileId: payment.evidenceFileId,
+      },
+    ],
+  ]) {
+    const path = `/api/${kind}/${record.id}`;
+    assert.equal(
+      (
+        await call(path, {
+          method: "PATCH",
+          cookie: second,
+          body: { ...body, revision: 1 },
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "DELETE",
+          cookie: second,
+          body: { revision: 1 },
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "PATCH",
+          cookie: first,
+          body: { ...body, revision: 99 },
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "PATCH",
+          cookie: first,
+          body: { ...body, revision: 1 },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "PATCH",
+          cookie: first,
+          body: { ...body, revision: 1 },
+        })
+      ).status,
+      409,
+    );
+    const recordKind = kind === "readings" ? "reading" : "payment";
+    const historyPath = `/api/record-history?kind=${recordKind}&id=${record.id}`;
+    const ownHistory = await call(historyPath, { cookie: first });
+    assert.equal(ownHistory.status, 200, JSON.stringify(ownHistory.result));
+    assert.equal(ownHistory.result.entries.length, 1);
+    assert.equal(
+      (await call(historyPath, { cookie: second })).result.entries.length,
+      0,
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "DELETE",
+          cookie: first,
+          body: { revision: 1 },
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "DELETE",
+          cookie: first,
+          body: { revision: 2 },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await call(historyPath, { cookie: first })).result.entries[0].action,
+      "deleted",
+    );
+    assert.equal(
+      (
+        await call(path, {
+          method: "DELETE",
+          cookie: first,
+          body: { revision: 2 },
+        })
+      ).status,
+      404,
+    );
+  }
+  assert.deepEqual(
+    (await call(`/api/cases/${caseId}`, { cookie: first })).result.snapshot,
+    originalCase.snapshot,
+  );
+
   assert.equal(
     (
       await call(`/api/bills/${billId}`, {

@@ -14,6 +14,7 @@ import {
   ScanLine,
   CircleAlert,
   Layers,
+  GitCompareArrows,
   ArrowRight,
   Zap as Bolt,
   ChevronRight,
@@ -46,7 +47,11 @@ import {
 import BillEntry from "./components/bill-entry";
 import CasesView from "./components/cases-view";
 import EvidenceGuide from "./components/evidence-guide";
+import InvestigationView from "./components/investigation-view";
+import RecordHistory from "./components/record-history";
+import RecordEditor, { type EditableRecord } from "./components/record-editor";
 type View =
+  | "investigation"
   | "overview"
   | "bills"
   | "add"
@@ -58,6 +63,11 @@ type View =
 const navigation = [
   { key: "overview", label: t("Overview"), icon: House },
   { key: "bills", label: t("Bills & findings"), icon: FileText },
+  {
+    key: "investigation",
+    label: t("Investigate bills"),
+    icon: GitCompareArrows,
+  },
   { key: "cases", label: t("Tracked cases"), icon: FolderOpen },
   { key: "readings", label: t("Meter readings"), icon: Gauge },
   { key: "payments", label: t("Payment records"), icon: Wallet },
@@ -410,6 +420,33 @@ export default function Dashboard() {
                   openCase={openCase}
                 />
               )}{" "}
+              {view === "investigation" && (
+                <InvestigationView
+                  key={reference}
+                  data={data}
+                  reference={reference}
+                  onInspect={(bill) => {
+                    setEditing(bill);
+                    setSource(undefined);
+                    go("add");
+                  }}
+                  onAdd={(billMonth) => {
+                    setEditing(null);
+                    setSource(
+                      billMonth
+                        ? {
+                            draft: {
+                              referenceNumber: reference,
+                              billMonth: billMonth.slice(0, 7),
+                            },
+                          }
+                        : undefined,
+                    );
+                    go("add");
+                  }}
+                  onCase={openCase}
+                />
+              )}
               {view === "bills" && (
                 <BillsView
                   data={data}
@@ -463,6 +500,7 @@ export default function Dashboard() {
                   key={targetBill?.id ?? reference}
                   data={data}
                   bills={active}
+                  reference={reference}
                   targetBill={targetBill}
                   reload={load}
                   onEvidence={setPendingUpload}
@@ -566,8 +604,8 @@ function OverviewView({
           detail: t(
             "Inspect the compared values, then open a case to preserve the evidence.",
           ),
-          action: () => go("bills"),
-          label: t("Inspect findings"),
+          action: () => go("investigation"),
+          label: t("Investigate bills"),
         }
       : {
           title: t("Strengthen the evidence"),
@@ -1067,6 +1105,8 @@ function ReadingsView({
   onBusy: (busy: boolean) => void;
   afterSave: () => void;
 }) {
+  const [editing, setEditing] = useState<EditableRecord | null>(null);
+  const [deleting, setDeleting] = useState<EditableRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -1189,7 +1229,7 @@ function ReadingsView({
                 <input
                   type="number"
                   min={0}
-                  step="0.01"
+                  step="0.001"
                   name="readingValue"
                   required
                 />
@@ -1292,6 +1332,26 @@ function ReadingsView({
                       </a>
                     )}
                   </span>
+                  <div className="record-actions">
+                    <button
+                      className="text-button"
+                      disabled={busy || !!evidenceId}
+                      onClick={() =>
+                        setEditing({ kind: "reading", record: reading })
+                      }
+                    >
+                      {t("Correct / history")}
+                    </button>
+                    <button
+                      className="text-button danger"
+                      disabled={busy || !!evidenceId}
+                      onClick={() =>
+                        setDeleting({ kind: "reading", record: reading })
+                      }
+                    >
+                      {t("Delete")}
+                    </button>
+                  </div>
                 </div>
               ))}
           </div>
@@ -1303,14 +1363,33 @@ function ReadingsView({
               text="Add two compatible observations to estimate daily use."
             />
           )}
+          <RecordHistory kind="reading" refresh={data} />
         </section>
       </div>
+      {editing && (
+        <RecordEditor
+          item={editing}
+          data={data}
+          reload={reload}
+          onBusy={onBusy}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {deleting && (
+        <RecordDeletion
+          item={deleting}
+          reload={reload}
+          onBusy={onBusy}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </>
   );
 }
 function PaymentsView({
   data,
   bills,
+  reference,
   reload,
   targetBill,
   onEvidence,
@@ -1319,12 +1398,15 @@ function PaymentsView({
 }: {
   data: Overview;
   bills: Bill[];
+  reference: string;
   reload: () => Promise<void>;
   targetBill: Bill | null;
   onEvidence: (id: string | null) => void;
   onBusy: (busy: boolean) => void;
   afterSave: () => void;
 }) {
+  const [editing, setEditing] = useState<EditableRecord | null>(null);
+  const [deleting, setDeleting] = useState<EditableRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
@@ -1387,7 +1469,10 @@ function PaymentsView({
     }
   }
   const payments = data.payments.filter((payment) =>
-    bills.some((bill) => bill.id === payment.billId),
+    data.bills.some(
+      (bill) =>
+        bill.id === payment.billId && bill.referenceNumber === reference,
+    ),
   );
   return (
     <>
@@ -1505,6 +1590,26 @@ function PaymentsView({
                       </a>
                     )}
                   </span>
+                  <div className="record-actions">
+                    <button
+                      className="text-button"
+                      disabled={busy || !!receipt}
+                      onClick={() =>
+                        setEditing({ kind: "payment", record: payment })
+                      }
+                    >
+                      {t("Correct / history")}
+                    </button>
+                    <button
+                      className="text-button danger"
+                      disabled={busy || !!receipt}
+                      onClick={() =>
+                        setDeleting({ kind: "payment", record: payment })
+                      }
+                    >
+                      {t("Delete")}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1514,8 +1619,26 @@ function PaymentsView({
               text="Save an amount and date with optional receipt evidence."
             />
           )}
+          <RecordHistory kind="payment" refresh={data} />
         </section>
       </div>
+      {editing && (
+        <RecordEditor
+          item={editing}
+          data={data}
+          reload={reload}
+          onBusy={onBusy}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {deleting && (
+        <RecordDeletion
+          item={deleting}
+          reload={reload}
+          onBusy={onBusy}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </>
   );
 }
@@ -1824,5 +1947,64 @@ function RecoverySettings() {
         </>
       )}
     </section>
+  );
+}
+
+function RecordDeletion({
+  item,
+  reload,
+  onClose,
+  onBusy,
+}: {
+  item: EditableRecord;
+  reload: () => Promise<void>;
+  onClose: () => void;
+  onBusy: (busy: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const [deleted, setDeleted] = useState(false);
+  async function remove() {
+    setBusy(true);
+    onBusy(true);
+    try {
+      if (!deleted)
+        await api(
+          `/api/${item.kind === "reading" ? "readings" : "payments"}/${item.record.id}`,
+          json({ revision: item.record.revision }, "DELETE"),
+        );
+      setDeleted(true);
+      try {
+        await reload();
+        onClose();
+      } catch {
+        setError(
+          t(
+            "The record was deleted, but the list could not refresh. Close and reload the workspace.",
+          ),
+        );
+      }
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : t("Could not delete record"),
+      );
+    } finally {
+      setBusy(false);
+      onBusy(false);
+    }
+  }
+  return (
+    <>
+      <Confirmation
+        title={t("Delete this evidence record?")}
+        description={t(
+          "This removes the observation or payment from current checks. Private revision history and existing case snapshots are retained. Attached files remain private and can be removed from Documents when unused.",
+        )}
+        busy={busy}
+        error={error}
+        onCancel={onClose}
+        onConfirm={() => void remove()}
+      />
+    </>
   );
 }

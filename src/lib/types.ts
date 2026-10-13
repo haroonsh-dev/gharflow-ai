@@ -12,10 +12,12 @@ export type Bill = BillRecord & {
   extraction: Extraction | null;
 };
 export type Reading = ReadingRecord & {
+  revision: number;
   note: string;
   evidenceFileId: string | null;
 };
 export type Payment = {
+  revision: number;
   id: string;
   billId: string;
   evidenceFileId: string | null;

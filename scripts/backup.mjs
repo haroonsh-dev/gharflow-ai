@@ -29,6 +29,7 @@ const tables = [
   "meter_readings",
   "payments",
   "cases",
+  "record_changes",
   "deletion_tombstones",
 ];
 const [mode, file, ledger] = process.argv.slice(2);
