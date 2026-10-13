@@ -21,6 +21,8 @@ Use a dedicated private `household-evidence` bucket. The browser receives no Sup
 
 Create a Render Blueprint from `render.yaml`, choose the **Free** instance, and supply its three prompted secrets: `DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_SERVICE_KEY`. No secrets belong in the Blueprint or GitHub.
 
+AI investigation is optional. To enable it, set `OPENAI_API_KEY` as a server-only secret in the Render service environment and optionally set `OPENAI_MODEL`. Each AI request requires the signed-in user to consent. The API sends the question, selected finding, and up to 24 months of structured records for that connection; it excludes source files, connection numbers, meter serials, names, and email. Keep the configured provider and model in the privacy notice current. Without the key, household records, OCR, deterministic checks, and case reports continue to work.
+
 The container starts migrations, a single loopback OCR worker, and the Next standalone server under process supervision. Only the Next port is exposed. Render supplies `RENDER_EXTERNAL_URL`, which is used for origin validation; `APP_ORIGIN` can explicitly override it. Secure cookies, verified database TLS, private cloud storage, and disabled demo are checked by `/api/health`.
 
 After readiness, verify the assigned HTTPS URL, create a disposable invitation account, upload explicitly labeled test evidence, download its report, and redeploy. Verify the same original, preview, record, and case survive. Delete that account afterward. Do not claim this gate passed without the real hosted run.

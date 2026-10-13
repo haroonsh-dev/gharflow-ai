@@ -123,7 +123,7 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
           </div>
         </div>
         <p className="auth-footnote">
-          {t("Private document processing · No external AI provider")}
+          {t("Private documents · Optional AI review by consent")}
         </p>
       </section>
       <section className="auth-panel">

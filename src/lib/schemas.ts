@@ -133,5 +133,10 @@ export const caseUpdateSchema = z.object({
   evidenceIds: z.array(z.uuid()).max(1000),
   checklist: checklistSchema.optional(),
 });
+export const aiInvestigationRequestSchema = z.object({
+  findingId: z.string().min(1).max(120),
+  question: z.string().trim().min(8).max(600),
+  consent: z.literal(true),
+});
 export type BillInput = z.infer<typeof billSchema>;
 export type Extraction = z.infer<typeof extractionSchema>;

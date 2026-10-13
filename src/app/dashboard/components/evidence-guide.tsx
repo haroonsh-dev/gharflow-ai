@@ -63,7 +63,7 @@ export default function EvidenceGuide({
               <h3>{t("Your documents stay private.")}</h3>
               <p>
                 {t(
-                  "OCR runs inside the application service. No document text is sent to an external AI provider. You confirm extracted values; explainable rules compare those records.",
+                  "OCR runs locally. If you opt in for an AI investigation, only your question and redacted structured values from one connection are sent to OpenAI. Source documents and account identifiers are excluded.",
                 )}
               </p>
               <small>
@@ -134,9 +134,7 @@ export default function EvidenceGuide({
         )}
       </div>
       <p className="guide-footnote">
-        {t(
-          "Explainable guidance · No generated answers or automatic conclusions",
-        )}
+        {t("Rule checks find numeric issues · AI helps investigate evidence")}
       </p>
     </section>
   );

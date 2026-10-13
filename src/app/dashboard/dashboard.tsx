@@ -50,6 +50,7 @@ import EvidenceGuide from "./components/evidence-guide";
 import InvestigationView from "./components/investigation-view";
 import RecordHistory from "./components/record-history";
 import RecordEditor, { type EditableRecord } from "./components/record-editor";
+import AIInvestigator from "./components/ai-investigator";
 type View =
   | "investigation"
   | "overview"
@@ -645,7 +646,7 @@ function OverviewView({
         </div>
         <div className="focus-evidence">
           <ScanLine size={28} />
-          <span>{t("LOCAL OCR + EXPLAINABLE CHECKS")}</span>
+          <span>{t("LOCAL OCR + GROUNDED AI REVIEW")}</span>
           <strong>{t("You stay in control.")}</strong>
           <p>
             {t(
@@ -1766,6 +1767,17 @@ function Investigation({
   act: (finding: Finding, action: InvestigationAction) => void;
   openCase: (finding: Finding) => Promise<void>;
 }) {
+  function openSource(source: {
+    kind: "bill" | "reading" | "payment";
+    billId: string;
+  }) {
+    act(finding, {
+      kind: source.kind,
+      billId: source.billId,
+      label: "Inspect cited source",
+      description: "Open the source record referenced by the AI answer.",
+    });
+  }
   return (
     <section className="investigation-card">
       <FindingRow finding={finding} />
@@ -1791,6 +1803,7 @@ function Investigation({
           </button>
         )}
       </div>
+      <AIInvestigator findingId={finding.id} onOpenSource={openSource} />
     </section>
   );
 }
