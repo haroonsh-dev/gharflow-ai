@@ -40,3 +40,9 @@ node scripts/check-resources.mjs
 ```
 
 Smoke tests delete only their disposable invited accounts. Operations tests use temporary databases and encrypted archives. Existing households are not reset. See DEPLOYMENT.md for secure cloud setup, invitations, backups, restoration, and rollback.
+
+## Modern interface follow-up
+
+The interface update passed typecheck, lint, all 23 TypeScript tests, and a production Next.js build. Two new rendering tests distinguish an empty household from a confirmed record without review flags, and verify that guide answers retain the actual finding, calculation, and missing evidence.
+
+Browser checks used a disposable invited account with initially empty records. A manually entered test bill was saved, its 20 kWh arithmetic discrepancy appeared in the guide, and the guide opened that exact bill for editing. The privacy answer, upload navigation, 390/768/1280-pixel layouts with matching document widths, menu inert state, and Escape focus restoration were verified. Test bill and account were deleted. This guide uses existing saved findings and deterministic guidance, not an LLM. No external AI provider was added. Cloud deployment remains pending hosting configuration.

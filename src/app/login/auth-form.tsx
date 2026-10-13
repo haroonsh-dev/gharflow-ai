@@ -2,7 +2,14 @@
 import { t } from "@/lib/copy";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Zap, LockKeyhole } from "lucide-react";
+import {
+  ArrowRight,
+  Zap,
+  LockKeyhole,
+  FileText,
+  ScanLine,
+  FolderCheck,
+} from "lucide-react";
 export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
@@ -85,12 +92,35 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
           <span className="eyebrow-light">
             {t("HOUSEHOLD ENERGY, MADE CLEAR")}
           </span>
-          <h1>{t("Know what your electricity bill is really saying.")}</h1>
+          <h1>
+            {t("Electricity bills.")}
+            <br />
+            <span>{t("Clearer decisions.")}</span>
+          </h1>
           <p>
             {t(
               "Keep your LESCO bills and readings together. Spot figures worth checking and make decisions with the evidence in front of you.",
             )}
           </p>
+        </div>
+        <div className="auth-journey" aria-label={t("How GharFlow works")}>
+          <div>
+            <FileText size={22} />
+            <strong>{t("01 / Your bill")}</strong>
+            <span>{t("Upload privately")}</span>
+          </div>
+          <ArrowRight size={17} aria-hidden="true" />
+          <div>
+            <ScanLine size={22} />
+            <strong>{t("02 / Your evidence")}</strong>
+            <span>{t("Confirm & compare")}</span>
+          </div>
+          <ArrowRight size={17} aria-hidden="true" />
+          <div>
+            <FolderCheck size={22} />
+            <strong>{t("03 / Your next step")}</strong>
+            <span>{t("Investigate & export")}</span>
+          </div>
         </div>
         <p className="auth-footnote">
           {t("Private document processing · No external AI provider")}

@@ -11,6 +11,9 @@ import {
 import { useRouter } from "next/navigation";
 import {
   Activity,
+  ScanLine,
+  CircleAlert,
+  Layers,
   ArrowRight,
   Zap as Bolt,
   ChevronRight,
@@ -42,6 +45,7 @@ import {
 } from "./components/ui";
 import BillEntry from "./components/bill-entry";
 import CasesView from "./components/cases-view";
+import EvidenceGuide from "./components/evidence-guide";
 type View =
   | "overview"
   | "bills"
@@ -74,6 +78,7 @@ export default function Dashboard() {
   );
   const closeMenu = useRef<HTMLButtonElement>(null);
   const openMenu = useRef<HTMLButtonElement>(null);
+  const menuWasOpen = useRef(false);
   const router = useRouter();
   const [view, setView] = useState<View>("overview");
   const [data, setData] = useState<Overview | null>(null);
@@ -97,15 +102,19 @@ export default function Dashboard() {
   const [processing, setProcessing] = useState(false);
   useEffect(() => {
     if (mobile) {
+      menuWasOpen.current = true;
       closeMenu.current?.focus();
       const onKey = (event: KeyboardEvent) => {
         if (event.key === "Escape") {
           setMobile(false);
-          openMenu.current?.focus();
         }
       };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
+    }
+    if (menuWasOpen.current) {
+      menuWasOpen.current = false;
+      openMenu.current?.focus();
     }
   }, [mobile]);
   const load = useCallback(async () => {
@@ -265,6 +274,7 @@ export default function Dashboard() {
             <button
               disabled={view === "add" || processing}
               key={item.key}
+              aria-current={view === item.key ? "page" : undefined}
               className={`nav-item ${view === item.key ? "active" : ""}`}
               onClick={() => go(item.key)}
             >
@@ -276,6 +286,14 @@ export default function Dashboard() {
             </button>
           ))}
         </nav>
+        <button
+          className="sidebar-upload"
+          disabled={view === "add" || processing}
+          onClick={add}
+        >
+          <Plus size={18} />
+          {t("Upload a bill")}
+        </button>
         <div className="sidebar-bottom">
           <div className="sidebar-tip">
             <ShieldCheck size={20} />
@@ -323,8 +341,8 @@ export default function Dashboard() {
             </strong>
           </span>
           <span className="topbar-right">
-            <span className="coverage-dot" />
-            {t("Local processing")}
+            <ShieldCheck size={15} />
+            {t("Private workspace")}
           </span>
         </header>
         <main className="content">
@@ -511,6 +529,11 @@ function OverviewView({
   openCase: (finding: Finding) => Promise<void>;
 }) {
   const latest = bills[0];
+  const connectionCases = data.cases.filter(
+    (item) =>
+      !reference ||
+      item.snapshot.bills.some((bill) => bill.referenceNumber === reference),
+  );
   const findings = data.findings.filter((finding) =>
     bills.some((bill) => bill.id === finding.billId),
   );
@@ -558,9 +581,9 @@ function OverviewView({
     <>
       <PageHead
         eyebrow={t("HOUSEHOLD EVIDENCE")}
-        title={t("Know what needs your attention.")}
+        title={t("Your energy, in focus.")}
         description={t(
-          "A decision workspace built around your confirmed records.",
+          "From a bill to a clear next step. All your evidence, together.",
         )}
         action={
           <button className="button button-primary" onClick={onAdd}>
@@ -569,7 +592,7 @@ function OverviewView({
           </button>
         }
       />
-      <section className="hero-banner">
+      <section className="focus-banner">
         <div>
           <span className="hero-kicker">
             <Activity size={16} />
@@ -577,36 +600,112 @@ function OverviewView({
           </span>
           <h2>{next.title}</h2>
           <p>{next.detail}</p>
-          <button onClick={next.action}>
+          <button className="button" onClick={next.action}>
             {next.label}
             <ArrowRight size={17} />
           </button>
         </div>
-        <div className="hero-art" aria-hidden="true">
-          <span className="orbit orbit-one" />
-          <span className="orbit orbit-two" />
-          <span className="hero-bolt">
-            <Bolt size={44} />
-          </span>
+        <div className="focus-evidence">
+          <ScanLine size={28} />
+          <span>{t("LOCAL OCR + EXPLAINABLE CHECKS")}</span>
+          <strong>{t("You stay in control.")}</strong>
+          <p>
+            {t(
+              "Inspect the source. Confirm the values. Decide what happens next.",
+            )}
+          </p>
         </div>
       </section>
       <div className="metric-grid">
         <Metric
-          label={t("Latest active bill")}
+          icon="bill"
+          label={t("Latest bill")}
           value={latest ? money(latest.totalAmount) : "—"}
           note={latest ? month(latest.billMonth) : t("No bill saved")}
         />
         <Metric
-          label={t("Review findings")}
-          value={String(review.length)}
-          note="Source differences to investigate"
+          icon="usage"
+          label={t("Billed consumption")}
+          value={
+            latest?.billedUnits != null ? `${latest.billedUnits} kWh` : "—"
+          }
+          note={t("From the latest confirmed bill")}
         />
         <Metric
-          label={t("Incomplete checks")}
-          value={String(missing.length)}
-          note="Unavailable checks need more evidence"
+          icon="review"
+          label={t("Needs a closer look")}
+          value={String(review.length)}
+          note={`${missing.length} ${t("checks need more evidence")}`}
+        />
+        <Metric
+          icon="case"
+          label={t("Open investigations")}
+          value={String(
+            connectionCases.filter(
+              (item) =>
+                item.status === "open" || item.status === "awaiting_response",
+            ).length,
+          )}
+          note={t("Outcomes remain user reported")}
         />
       </div>
+      <section className="journey-card" aria-label={t("Your evidence journey")}>
+        {[
+          {
+            label: "Collect",
+            detail: `${bills.length} ${t("active bills")}`,
+            done: bills.length > 0,
+            action: onAdd,
+          },
+          {
+            label: "Confirm",
+            detail: "Inspect source values",
+            done: bills.some((bill) => !!bill.confirmedAt),
+            action: () => go("bills"),
+          },
+          {
+            label: "Investigate",
+            detail: `${review.length} ${t("review findings")}`,
+            done: review.length > 0,
+            action: () => go("bills"),
+          },
+          {
+            label: "Keep a record",
+            detail: "Cases & PDF reports",
+            done: connectionCases.length > 0,
+            action: () => go("cases"),
+          },
+        ].map((step, index) => (
+          <button key={step.label} onClick={step.action}>
+            <span className={`journey-marker ${step.done ? "recorded" : ""}`}>
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span>
+              <strong>{t(step.label)}</strong>
+              <small>{t(step.detail)}</small>
+            </span>
+            <ChevronRight size={16} />
+          </button>
+        ))}
+      </section>
+      {data.evidence.some((file) => file.unattached) && (
+        <button className="resume-evidence" onClick={() => go("documents")}>
+          <FileText size={20} />
+          <span>
+            <strong>{t("You have unfinished document reviews")}</strong>
+            <small>
+              {t("Continue with the original file you already uploaded.")}
+            </small>
+          </span>
+          <ArrowRight size={19} />
+        </button>
+      )}
+      <EvidenceGuide
+        findings={findings}
+        hasBills={bills.length > 0}
+        onAction={act}
+        onAdd={onAdd}
+      />
       <div className="dashboard-grid">
         <section className="card">
           <div className="section-heading">
@@ -708,15 +807,23 @@ function Metric({
   label,
   value,
   note,
+  icon,
 }: {
   label: string;
   value: string;
   note: string;
+  icon: "bill" | "usage" | "review" | "case";
 }) {
+  const Icon = {
+    bill: FileText,
+    usage: Bolt,
+    review: CircleAlert,
+    case: Layers,
+  }[icon];
   return (
-    <div className="metric-card">
+    <div className={`metric-card metric-${icon}`}>
       <span className="metric-icon">
-        <FileText size={20} />
+        <Icon size={19} />
       </span>
       <span className="metric-label">{label}</span>
       <strong>{value}</strong>
@@ -747,7 +854,7 @@ function Trend({ bills }: { bills: Bill[] }) {
               <div
                 className="bar-fill"
                 style={{
-                  height: `${Math.max(7, ((bill.billedUnits ?? 0) / max) * 100)}%`,
+                  height: `${((bill.billedUnits ?? 0) / max) * 100}%`,
                 }}
               />
             </div>
