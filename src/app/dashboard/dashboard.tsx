@@ -17,6 +17,8 @@ import {
   GitCompareArrows,
   ArrowRight,
   Zap as Bolt,
+  Sun,
+  Globe,
   ChevronRight,
   FileText,
   Gauge,
@@ -53,10 +55,16 @@ import InvestigationView from "./components/investigation-view";
 import RecordHistory from "./components/record-history";
 import RecordEditor, { type EditableRecord } from "./components/record-editor";
 import AIInvestigator from "./components/ai-investigator";
+import ApplianceSimulator from "./components/appliance-simulator";
+import SolarAuditor from "./components/solar-auditor";
+import OnlineFetcher from "./components/online-fetcher";
+import WhatsAppDispatcher from "./components/whatsapp-dispatcher";
 type View =
   | "investigation"
   | "overview"
   | "bills"
+  | "appliances"
+  | "solar"
   | "add"
   | "cases"
   | "readings"
@@ -71,6 +79,8 @@ const navigation = [
     label: t("Investigate bills"),
     icon: GitCompareArrows,
   },
+  { key: "appliances", label: t("Appliance load simulator"), icon: Bolt },
+  { key: "solar", label: t("Solar & green meter"), icon: Sun },
   { key: "cases", label: t("Tracked cases"), icon: FolderOpen },
   { key: "readings", label: t("Meter readings"), icon: Gauge },
   { key: "payments", label: t("Payment records"), icon: Wallet },
@@ -104,15 +114,34 @@ export default function Dashboard() {
   const [source, setSource] = useState<{
     id?: string;
     extraction?: Extraction | null;
-    draft?: {
-      referenceNumber?: string;
-      billMonth?: string;
-      meterIdentity?: string;
-    };
+    draft?: Partial<Record<string, string>>;
   }>();
   const [pendingUpload, setPendingUpload] = useState<string | null>(null);
   const [pendingView, setPendingView] = useState<View | null>(null);
   const [processing, setProcessing] = useState(false);
+  function applyOnlineData(fetched: {
+    referenceNumber: string;
+    billedUnits?: number;
+    totalAmount?: number;
+    readingDate?: string;
+    dueDate?: string;
+    meterIdentity?: string;
+  }) {
+    setEditing(null);
+    setSource({
+      draft: {
+        referenceNumber: fetched.referenceNumber,
+        billedUnits:
+          fetched.billedUnits != null ? String(fetched.billedUnits) : "",
+        totalAmount:
+          fetched.totalAmount != null ? String(fetched.totalAmount) : "",
+        readingDate: fetched.readingDate ?? "",
+        dueDate: fetched.dueDate ?? "",
+        meterIdentity: fetched.meterIdentity ?? "",
+      },
+    });
+    go("add");
+  }
   useEffect(() => {
     if (mobile) {
       menuWasOpen.current = true;
@@ -461,8 +490,33 @@ export default function Dashboard() {
                   go={go}
                   act={act}
                   openCase={openCase}
+                  onApplyOnline={applyOnlineData}
                 />
-              )}{" "}
+              )}
+              {view === "appliances" && (
+                <>
+                  <PageHead
+                    eyebrow={t("APPLIANCE FORENSICS")}
+                    title={t("Slab Killer Simulator & Load Modeling")}
+                    description={t(
+                      "Interactive load simulator for Pakistani domestic appliances. Test runtime hours, calculate progressive tariff slabs, and see exactly which appliance pushes you into unprotected rates.",
+                    )}
+                  />
+                  <ApplianceSimulator />
+                </>
+              )}
+              {view === "solar" && (
+                <>
+                  <PageHead
+                    eyebrow={t("SOLAR INTELLIGENCE")}
+                    title={t("Green Meter Net-Metering Auditor")}
+                    description={t(
+                      "Audit bi-directional import and export units under NEPRA Net Metering Regulations (2015). Detect uncredited buyback generation and calculate peak off-peak net financial balances.",
+                    )}
+                  />
+                  <SolarAuditor />
+                </>
+              )}
               {view === "investigation" && (
                 <InvestigationView
                   key={reference}
@@ -502,8 +556,9 @@ export default function Dashboard() {
                   openCase={openCase}
                   reload={load}
                   act={act}
+                  onApplyOnline={applyOnlineData}
                 />
-              )}{" "}
+              )}
               {view === "add" && (
                 <BillEntry
                   key={editing?.id ?? "new"}
@@ -600,6 +655,7 @@ function OverviewView({
   go,
   act,
   openCase,
+  onApplyOnline,
 }: {
   data: Overview;
   bills: Bill[];
@@ -608,6 +664,14 @@ function OverviewView({
   go: (view: View) => void;
   act: (finding: Finding, action: InvestigationAction) => void;
   openCase: (finding: Finding) => Promise<void>;
+  onApplyOnline?: (fetched: {
+    referenceNumber: string;
+    billedUnits?: number;
+    totalAmount?: number;
+    readingDate?: string;
+    dueDate?: string;
+    meterIdentity?: string;
+  }) => void;
 }) {
   const latest = bills[0];
   const connectionCases = data.cases.filter(
@@ -697,6 +761,67 @@ function OverviewView({
           </p>
         </div>
       </section>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginTop: "20px", marginBottom: "20px" }}>
+        <div
+          style={{
+            padding: "20px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(2,132,199,0.02) 100%)",
+            border: "1px solid rgba(37,99,235,0.2)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: "14px",
+          }}
+        >
+          <div>
+            <span className="eyebrow" style={{ color: "#2563eb", marginBottom: "4px", display: "inline-block" }}>
+              ⚡ {t("APPLIANCE FORENSICS")}
+            </span>
+            <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 700 }}>
+              {t("Slab Killer & Load Simulator")}
+            </h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-secondary)" }}>
+              {t("Model Inverter ACs, geysers, motors & UPS charging. Find out which appliance pushes you into unprotected slabs.")}
+            </p>
+          </div>
+          <button className="button button-outline" onClick={() => go("appliances")} style={{ alignSelf: "flex-start" }}>
+            {t("Launch Simulator")}
+            <ArrowRight size={15} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "20px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, rgba(217,119,6,0.06) 0%, rgba(245,158,11,0.02) 100%)",
+            border: "1px solid rgba(217,119,6,0.2)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: "14px",
+          }}
+        >
+          <div>
+            <span className="eyebrow" style={{ color: "#d97706", marginBottom: "4px", display: "inline-block" }}>
+              ☀️ {t("GREEN METER")}
+            </span>
+            <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 700 }}>
+              {t("Solar Net-Metering Auditor")}
+            </h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-secondary)" }}>
+              {t("Verify bi-directional import/export credits and detect uncredited buyback generation under NEPRA 2015 rules.")}
+            </p>
+          </div>
+          <button className="button button-outline" onClick={() => go("solar")} style={{ alignSelf: "flex-start" }}>
+            {t("Audit Solar Credits")}
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      </div>
+
+      <OnlineFetcher initialReference={reference} onApplyData={onApplyOnline} />
       <div className="metric-grid">
         <Metric
           icon="bill"
@@ -869,6 +994,7 @@ function OverviewView({
             .map((finding) => (
               <Investigation
                 key={finding.id}
+                bill={bills.find((b) => b.id === finding.billId)}
                 finding={finding}
                 act={act}
                 openCase={openCase}
@@ -977,6 +1103,7 @@ function BillsView({
   openCase,
   reload,
   act,
+  onApplyOnline,
 }: {
   data: Overview;
   reference: string;
@@ -985,6 +1112,14 @@ function BillsView({
   openCase: (finding: Finding) => Promise<void>;
   reload: () => Promise<void>;
   act: (finding: Finding, action: InvestigationAction) => void;
+  onApplyOnline?: (fetched: {
+    referenceNumber: string;
+    billedUnits?: number;
+    totalAmount?: number;
+    readingDate?: string;
+    dueDate?: string;
+    meterIdentity?: string;
+  }) => void;
 }) {
   const [deleting, setDeleting] = useState<Bill | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1030,6 +1165,7 @@ function BillsView({
           "A source difference is a reason to investigate. Utility errors and payment posting are not verified.",
         )}
       </div>
+      <OnlineFetcher initialReference={reference} onApplyData={onApplyOnline} />
       {bills.length ? (
         <div className="bill-list">
           {bills.map((bill) => (
@@ -1077,6 +1213,7 @@ function BillsView({
                 .map((finding) => (
                   <Investigation
                     key={finding.id}
+                    bill={bill}
                     finding={finding}
                     act={act}
                     openCase={openCase}
@@ -1801,10 +1938,12 @@ function SettingsView({
 }
 
 function Investigation({
+  bill,
   finding,
   act,
   openCase,
 }: {
+  bill?: Bill;
   finding: Finding;
   act: (finding: Finding, action: InvestigationAction) => void;
   openCase: (finding: Finding) => Promise<void>;
@@ -1820,6 +1959,9 @@ function Investigation({
       description: "Open the source record referenced by the AI answer.",
     });
   }
+  const disco = bill?.referenceNumber ? identifyDisco(bill.referenceNumber) : null;
+  const isPtcl = bill?.referenceNumber ? isPtclAccountId(bill.referenceNumber) : false;
+  const providerName = isPtcl ? "PTCL" : (disco?.name ?? "DISCO / Utility");
   return (
     <section className="investigation-card">
       <FindingRow finding={finding} />
@@ -1845,6 +1987,14 @@ function Investigation({
           </button>
         )}
       </div>
+      <WhatsAppDispatcher
+        referenceNumber={bill?.referenceNumber ?? ""}
+        discoName={providerName}
+        billMonth={bill?.billMonth ?? ""}
+        findingTitle={finding.title}
+        findingDetail={finding.detail}
+        evidenceText={finding.evidence.join(" · ")}
+      />
       <AIInvestigator findingId={finding.id} onOpenSource={openSource} />
     </section>
   );
