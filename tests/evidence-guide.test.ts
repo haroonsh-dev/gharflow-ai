@@ -41,5 +41,8 @@ test("evidence guide retains the actual finding and its calculation rather than 
   assert.match(output, /100 kWh/);
   assert.match(output, /Original bill document/);
   assert.match(output, /Inspect this bill/);
-  assert.match(output, /No generated answers or automatic conclusions/);
+  assert.match(
+    output,
+    /Rule checks find numeric issues · AI helps investigate evidence/,
+  );
 });

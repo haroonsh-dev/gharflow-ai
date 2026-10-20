@@ -1,11 +1,15 @@
 "use client";
+
 import { t } from "@/lib/copy";
 import { fieldName } from "@/lib/provenance";
 import { checklistLabels } from "@/lib/guidance";
 import { useState, type FormEvent } from "react";
+import { Scale, FileText } from "lucide-react";
 import type { CaseRecord, Overview } from "@/lib/types";
+import { isPtclAccountId } from "@/lib/ptcl";
 import { api, json, PageHead, Empty } from "./ui";
 import EvidencePreview from "./evidence-preview";
+
 export default function CasesView({
   data,
   reload,
@@ -19,20 +23,21 @@ export default function CasesView({
   const item = data.cases.find(
     (item) => item.id === (selected ?? data.cases[0]?.id),
   );
+
   return (
     <>
       <PageHead
-        eyebrow={t("TRACKED CASES")}
-        title={t("From finding to follow-through.")}
+        eyebrow={t("TRACKED CASES & REGULATORY DOSSIERS")}
+        title={t("From finding to regulatory follow-through.")}
         description={t(
-          "Preserve the calculation, attach evidence, and record what happened.",
+          "Preserve calculations, attach OCR evidence, and generate compliant legal dispute packages for NEPRA or PTA.",
         )}
       />
       {!item ? (
         <section className="card">
           <Empty
             title={t("No cases opened yet")}
-            text="Open a case from a review finding on Bills & findings."
+            text="Open an investigation case from any flagged review finding on Bills & findings."
           />
         </section>
       ) : (
@@ -64,6 +69,7 @@ export default function CasesView({
     </>
   );
 }
+
 function CaseEditor({
   item,
   data,
@@ -86,6 +92,11 @@ function CaseEditor({
   const bill =
     snapshot.bills.find((bill) => bill.id === snapshot.finding.billId) ??
     snapshot.bills[0];
+
+  const isPtcl =
+    isPtclAccountId(bill?.referenceNumber ?? "") ||
+    Boolean(snapshot.finding?.code?.startsWith("ptcl"));
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -105,27 +116,51 @@ function CaseEditor({
       setBusy(false);
     }
   }
+
   return (
     <section className="card">
-      <div className="section-heading">
+      <div className="section-heading" style={{ flexWrap: "wrap", gap: "14px" }}>
         <div>
           <span className="eyebrow">{t("IMMUTABLE CALCULATION SNAPSHOT")}</span>
           <h2>{snapshot.finding.title}</h2>
         </div>
-        <a
-          className="button button-primary"
-          href={`/api/cases/${item.id}/export`}
-        >
-          {t("Download PDF")}
-        </a>
-        <a
-          className="button button-outline"
-          href={`/cases/${item.id}/report`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t("Print / export")}
-        </a>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {isPtcl ? (
+            <a
+              className="button button-primary"
+              href={`/api/cases/${item.id}/export?format=pta`}
+              download
+            >
+              <Scale size={15} />
+              {t("Download PTA Complaint (PDF)")}
+            </a>
+          ) : (
+            <a
+              className="button button-primary"
+              href={`/api/cases/${item.id}/export?format=nepra`}
+              download
+            >
+              <Scale size={15} />
+              {t("Download NEPRA Complaint (PDF)")}
+            </a>
+          )}
+          <a
+            className="button button-outline"
+            href={`/api/cases/${item.id}/export`}
+            download
+          >
+            <FileText size={15} />
+            {t("Standard Audit PDF")}
+          </a>
+          <a
+            className="button button-outline"
+            href={`/cases/${item.id}/report`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t("Print / View")}
+          </a>
+        </div>
       </div>
       <p>{snapshot.finding.detail}</p>
       <ul className="evidence-values">
@@ -178,55 +213,42 @@ function CaseEditor({
           ))}
         </details>
       )}
-      <form className="stack-form" onSubmit={save}>
+      <form onSubmit={save} className="stack-form">
         <fieldset className="attachments">
           <legend>{t("Investigation checklist · user reported")}</legend>
-          {Object.entries(checklistLabels).map(([key, label]) => (
-            <label key={key}>
-              <input
-                type="checkbox"
-                checked={checklist[key as keyof typeof checklist]}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setChecklist((old) => ({ ...old, [key]: checked }));
-                }}
-              />
-              {t(label)}
-            </label>
-          ))}
+          {(Object.entries(checklistLabels) as [keyof typeof checklistLabels, string][]).map(
+            ([key, label]) => (
+              <label key={key}>
+                <input
+                  type="checkbox"
+                  checked={checklist[key]}
+                  onChange={(event) =>
+                    setChecklist((current) => ({
+                      ...current,
+                      [key]: event.target.checked,
+                    }))
+                  }
+                />
+                {label}
+              </label>
+            ),
+          )}
         </fieldset>
         <label>
-          {t("User-reported status")}
+          {t("Investigation status")}
           <select
             value={status}
             onChange={(event) =>
               setStatus(event.target.value as CaseRecord["status"])
             }
           >
-            <option value="open">{t("Open")}</option>
-            <option value="awaiting_response">{t("Awaiting response")}</option>
-            <option value="resolved">{t("Resolved — user reported")}</option>
-            <option value="dismissed">{t("Dismissed — user reported")}</option>
+            <option value="open">{t("Open · Gathering evidence")}</option>
+            <option value="awaiting_response">
+              {t("Awaiting utility response")}
+            </option>
+            <option value="resolved">{t("Resolved")}</option>
+            <option value="dismissed">{t("Dismissed")}</option>
           </select>
-        </label>
-        <label>
-          {t("Notes")}
-          <textarea
-            maxLength={3000}
-            rows={4}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
-        </label>
-        <label>
-          {t("Outcome / explanation")}
-          <textarea
-            maxLength={3000}
-            rows={3}
-            required={status === "resolved" || status === "dismissed"}
-            value={outcome}
-            onChange={(event) => setOutcome(event.target.value)}
-          />
         </label>
         <fieldset className="attachments">
           <legend>{t("Attach household evidence")}</legend>
@@ -258,21 +280,35 @@ function CaseEditor({
             <p>{t("No uploaded documents available.")}</p>
           )}
         </fieldset>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && <p role="status">{notice}</p>}
+        <label>
+          {t("Case notes")}
+          <textarea
+            maxLength={3000}
+            rows={4}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder={t(
+              "Record reference numbers from phone calls, visiting SDO officer names, or responses received.",
+            )}
+          />
+        </label>
+        <label>
+          {t("Outcome / explanation")}
+          <textarea
+            maxLength={3000}
+            rows={3}
+            required={status === "resolved" || status === "dismissed"}
+            value={outcome}
+            onChange={(event) => setOutcome(event.target.value)}
+            placeholder={t("For example: Adjusted in subsequent bill cycle")}
+          />
+        </label>
+        {notice && <p className="pill">{notice}</p>}
+        {error && <p className="form-error">{error}</p>}
         <button className="button button-primary" disabled={busy}>
-          {busy ? "Saving…" : t("Save case updates")}
+          {busy ? t("Saving…") : t("Save case record")}
         </button>
       </form>
-      <p className="fine-print">
-        {t(
-          "A case is a household record. Status does not verify a utility response, refund, payment posting, or official submission.",
-        )}
-      </p>
     </section>
   );
 }

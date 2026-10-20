@@ -12,10 +12,30 @@ class ExtractTests(unittest.TestCase):
         self.assertIsNone(sniff(b'not an image'))
 
     def test_fields(self):
-        fields = extract_fields('REFERENCE NO 12345678901234 CURRENT READING 250 PREVIOUS READING 200 UNITS CONSUMED 50 TOTAL AMOUNT 1,234')
+        fields = extract_fields('REFERENCE NO 12345678901234 CURRENT READING 250 PREVIOUS READING 200 UNITS CONSUMED 50 TOTAL AMOUNT 1,234 READING DATE 15-AUG-2026 DUE DATE 25-AUG-2026 TARIFF A-1A')
         self.assertEqual(fields['reference_number'], '12345678901234')
         self.assertEqual(fields['total_amount'], '1234')
+        self.assertEqual(fields['reading_date'], '2026-08-15')
+        self.assertEqual(fields['due_date'], '2026-08-25')
+        self.assertEqual(fields['tariff'], 'A-1A')
         self.assertEqual(extract_fields('REFERENCE NO 12345678901 234')['reference_number'], '12345678901234')
+
+    def test_ke_account_number(self):
+        # K-Electric 13-digit consumer account number
+        fields = extract_fields('ACCOUNT NO 0400012345678 NET PAYABLE 4,500')
+        self.assertEqual(fields['reference_number'], '0400012345678')
+        self.assertEqual(fields['total_amount'], '4500')
+
+    def test_ptcl_bill(self):
+        # PTCL Broadband 10-digit account ID and line-item charges
+        raw = 'ACCOUNT ID 1000123456 MONTHLY CHARGES 3,500 SALES TAX 682.50 WITHHOLDING TAX 525.00 ARREARS 0 AMOUNT PAYABLE 4,707.50'
+        fields = extract_fields(raw)
+        self.assertEqual(fields['reference_number'], '1000123456')
+        self.assertEqual(fields['package_charges'], '3500')
+        self.assertEqual(fields['sales_tax'], '682.50')
+        self.assertEqual(fields['wht_tax'], '525.00')
+        self.assertEqual(fields['arrears'], '0')
+        self.assertEqual(fields['total_amount'], '4707.50')
 
     def test_candidate_region_uses_value_tokens(self):
         header = 'level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n'

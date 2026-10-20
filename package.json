@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "evolve": "node scripts/evolve-bill-agent.mjs",
     "migrate": "node scripts/migrate.mjs",
     "format": "prettier --write src tests scripts/*.mjs"
   },

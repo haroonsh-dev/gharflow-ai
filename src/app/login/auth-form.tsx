@@ -1,4 +1,5 @@
 "use client";
+
 import { t } from "@/lib/copy";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,11 @@ import {
   FileText,
   ScanLine,
   FolderCheck,
+  ShieldCheck,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
+
 export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup" | "recover">("login");
@@ -17,6 +22,7 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
   const [saved, setSaved] = useState(false);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -51,6 +57,7 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
       setBusy(false);
     }
   }
+
   async function demo() {
     setBusy(true);
     try {
@@ -67,6 +74,7 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
       setBusy(false);
     }
   }
+
   function continueAfterCode() {
     setCode("");
     if (mode === "recover") {
@@ -76,77 +84,175 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
       router.refresh();
     }
   }
+
   return (
     <main className="auth-page">
       <section className="auth-story">
         <div className="brand brand-light">
           <span className="brand-mark">
-            <Zap size={23} />
+            <Zap size={21} />
           </span>
           <span>
             {t("GharFlow")}
             <b>AI</b>
           </span>
         </div>
+
         <div className="auth-story-content">
           <span className="eyebrow-light">
-            {t("HOUSEHOLD ENERGY, MADE CLEAR")}
+            <Sparkles size={13} />
+            {t("PAKISTAN UTILITY & TELECOM FORENSICS")}
           </span>
           <h1>
-            {t("Electricity bills.")}
+            {t("Utility bills.")}
             <br />
-            <span>{t("Clearer decisions.")}</span>
+            <span>{t("Audited down to the rupee.")}</span>
           </h1>
           <p>
             {t(
-              "Keep your LESCO bills and readings together. Spot figures worth checking and make decisions with the evidence in front of you.",
+              "Autonomous billing intelligence for Pakistani households. Audit LESCO, K-Electric, MEPCO & PTCL records, detect 30-day pro-rata slab breaches, verify statutory taxes, and generate legal dispute dossiers.",
             )}
           </p>
+
+          <div
+            style={{
+              marginTop: "28px",
+              padding: "18px",
+              background: "rgba(15, 23, 42, 0.65)",
+              border: "1px solid rgba(56, 189, 248, 0.25)",
+              borderRadius: "14px",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "12px",
+                fontSize: "11px",
+                color: "#7dd3fc",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+              }}
+            >
+              <span>{t("FORENSIC SIMULATION ENGINE")}</span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  color: "#34d399",
+                }}
+              >
+                <span
+                  style={{
+                    width: "6px",
+                    height: "6px",
+                    background: "#34d399",
+                    borderRadius: "50%",
+                  }}
+                />
+                {t("RULES v2026.4 ACTIVE")}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gap: "8px",
+                fontSize: "12.5px",
+                fontFamily: "ui-monospace, monospace",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "#e2e8f0",
+                }}
+              >
+                <span>{t("DISCO Grid")}</span>
+                <span style={{ color: "#38bdf8" }}>
+                  LESCO · KE · IESCO · MEPCO
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "#e2e8f0",
+                }}
+              >
+                <span>{t("Telecom Engine")}</span>
+                <span style={{ color: "#a78bfa" }}>
+                  PTCL · PRA 19.5% · WHT 15%
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "#e2e8f0",
+                }}
+              >
+                <span>{t("Consumer Protection")}</span>
+                <span style={{ color: "#34d399" }}>
+                  NEPRA CSM Ch 4 & PTA Compliant
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+
         <div className="auth-journey" aria-label={t("How GharFlow works")}>
           <div>
-            <FileText size={22} />
-            <strong>{t("01 / Your bill")}</strong>
-            <span>{t("Upload privately")}</span>
+            <FileText size={18} />
+            <strong>{t("01 / Upload bill")}</strong>
+            <span>{t("Private local OCR")}</span>
           </div>
-          <ArrowRight size={17} aria-hidden="true" />
+          <ArrowRight size={15} aria-hidden="true" />
           <div>
-            <ScanLine size={22} />
-            <strong>{t("02 / Your evidence")}</strong>
-            <span>{t("Confirm & compare")}</span>
+            <ScanLine size={18} />
+            <strong>{t("02 / Audit tariffs")}</strong>
+            <span>{t("30-day pro-rata check")}</span>
           </div>
-          <ArrowRight size={17} aria-hidden="true" />
+          <ArrowRight size={15} aria-hidden="true" />
           <div>
-            <FolderCheck size={22} />
-            <strong>{t("03 / Your next step")}</strong>
-            <span>{t("Investigate & export")}</span>
+            <FolderCheck size={18} />
+            <strong>{t("03 / Export dossier")}</strong>
+            <span>{t("NEPRA & PTA PDF")}</span>
           </div>
         </div>
+
         <p className="auth-footnote">
-          {t("Private documents · Optional AI review by consent")}
+          <ShieldCheck size={15} />
+          {t("Zero cloud document persistence · Evidence-first verification")}
         </p>
       </section>
+
       <section className="auth-panel">
         <div className="auth-card">
-          <span className="eyebrow">{t("YOUR PRIVATE WORKSPACE")}</span>
+          <span className="eyebrow">{t("HOUSEHOLD WORKSPACE")}</span>
           <h2>
             {code
               ? t("Save your recovery code")
               : mode === "login"
-                ? t("Welcome back.")
+                ? t("Sign in to your household")
                 : mode === "signup"
-                  ? t("Join your household workspace")
+                  ? t("Join household workspace")
                   : t("Recover your account")}
           </h2>
+
           {code ? (
             <>
-              <p>
+              <p className="muted">
                 {t(
-                  "Keep this code in a password manager or another safe place. It is shown only now. Anyone with this code and your email can reset your password. Email delivery and ownership verification are not provided.",
+                  "Keep this code in a password manager or another safe place. It is shown only now. Anyone with this code and your email can reset your password.",
                 )}
               </p>
-              <label>
-                {t("New recovery code")}
+              <label className="field" style={{ marginTop: "16px" }}>
+                <span>{t("New recovery code")}</span>
                 <input readOnly value={code} className="recovery-code" />
               </label>
               <label className="confirmation-check">
@@ -172,16 +278,17 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
               <p className="muted">
                 {mode === "signup"
                   ? t(
-                      "Invited households only. Enter the email and single-use invitation supplied by the operator.",
+                      "Invited households only. Enter your email and operator invitation code.",
                     )
                   : mode === "recover"
                     ? t(
-                        "Enter your recovery code and a new password. Existing sessions will be signed out, and the recovery code will rotate.",
+                        "Enter your recovery code and a new password to restore access.",
                       )
                     : t(
-                        "Sign in to continue reviewing your household records.",
+                        "Enter your credentials to review your utility records and dispute dossiers.",
                       )}
               </p>
+
               <form className="stack-form" onSubmit={submit}>
                 <label>
                   {t("Email address")}
@@ -191,8 +298,10 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
                     autoComplete="email"
                     required
                     maxLength={254}
+                    placeholder="household@example.com"
                   />
                 </label>
+
                 {mode === "signup" && (
                   <label>
                     {t("Invitation code")}
@@ -202,9 +311,11 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
                       required
                       minLength={43}
                       maxLength={43}
+                      placeholder="Paste 43-character invitation token"
                     />
                   </label>
                 )}
+
                 {mode === "recover" && (
                   <label>
                     {t("Recovery code")}
@@ -214,9 +325,11 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
                       required
                       minLength={43}
                       maxLength={43}
+                      placeholder="Paste your emergency recovery code"
                     />
                   </label>
                 )}
+
                 <label>
                   {mode === "recover" ? t("New password") : t("Password")}
                   <input
@@ -228,24 +341,28 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
                     minLength={12}
                     maxLength={128}
                     required
+                    placeholder="••••••••••••"
                   />
                 </label>
+
                 {error && (
                   <p role="alert" className="form-error">
                     {error}
                   </p>
                 )}
+
                 <button className="button button-primary full" disabled={busy}>
                   {busy
-                    ? t("Please wait…")
+                    ? t("Verifying…")
                     : mode === "login"
                       ? t("Sign in")
                       : mode === "signup"
                         ? t("Create account")
                         : t("Reset password")}
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} />
                 </button>
               </form>
+
               <div className="auth-mode-actions">
                 {(["login", "signup", "recover"] as const)
                   .filter((value) => value !== mode)
@@ -262,24 +379,33 @@ export default function AuthForm({ showDemo = false }: { showDemo?: boolean }) {
                       {value === "login"
                         ? t("Sign in")
                         : value === "signup"
-                          ? t("Use an invitation")
+                          ? t("Have an invitation?")
                           : t("Forgot password?")}
                     </button>
                   ))}
               </div>
+
               {showDemo && (
-                <button
-                  className="button button-outline full"
-                  disabled={busy}
-                  onClick={() => void demo()}
-                >
-                  {t("Explore the synthetic demo")}
-                </button>
+                <div style={{ marginTop: "24px" }}>
+                  <button
+                    className="button button-outline full"
+                    disabled={busy}
+                    onClick={() => void demo()}
+                    style={{
+                      border: "1px solid rgba(56, 189, 248, 0.25)",
+                      background: "rgba(56, 189, 248, 0.05)",
+                    }}
+                  >
+                    <Sparkles size={16} style={{ color: "#38bdf8" }} />
+                    {t("Explore synthetic demo household")}
+                  </button>
+                </div>
               )}
             </>
           )}
+
           <p className="privacy-note">
-            <LockKeyhole size={15} />
+            <LockKeyhole size={14} />
             {t("Your documents stay in your private household workspace.")}
           </p>
         </div>

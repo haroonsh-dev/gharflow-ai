@@ -17,14 +17,49 @@ MAX_BYTES = 8 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 12_000_000
 slots = asyncio.Semaphore(1)
 PATTERNS = {
-    "reference_number": r"REFERENCE\s*(?:NO|NUMBER|#)?[\s:.]*([0-9](?:\s*[0-9]){13})(?![0-9])",
+    "reference_number": r"(?:REFERENCE\s*(?:NO|NUMBER|#)?|CONSUMER\s*(?:NO|ID|#)?|ACCOUNT\s*(?:NO|NUMBER|ID|#)?)[\s:.]*([0-9](?:\s*[0-9]){9,13})(?![0-9])",
     "previous_reading": r"(?:PREVIOUS\s+READING|PREV\s+READING)[\s:.]*([0-9]{1,12}(?:\.[0-9]{1,3})?)",
     "current_reading": r"(?:CURRENT\s+READING|PRESENT\s+READING)[\s:.]*([0-9]{1,12}(?:\.[0-9]{1,3})?)",
-    "billed_units": r"(?:UNITS\s+CONSUMED|CONSUMED\s+UNITS|BILLED\s+UNITS)[\s:.]*([0-9]{1,12}(?:\.[0-9]{1,3})?)",
-    "total_amount": r"(?:PAYABLE\s+WITHIN\s+DUE\s+DATE|AMOUNT\s+PAYABLE|TOTAL\s+AMOUNT)[\s:.]*([0-9,]{1,15}(?:\.[0-9]{1,2})?)",
-    "meter_identity": r"METER\s*(?:NO|NUMBER|#)[\s:.]*([A-Z0-9-]{1,40})",
-    "reading_date": r"READING\s+DATE[\s:.]*(\d{4}-\d{2}-\d{2})",
+    "billed_units": r"(?:UNITS\s+CONSUMED|CONSUMED\s+UNITS|BILLED\s+UNITS|TOTAL\s+UNITS)[\s:.]*([0-9]{1,12}(?:\.[0-9]{1,3})?)",
+    "total_amount": r"(?:PAYABLE\s+WITHIN\s+DUE\s+DATE|AMOUNT\s+PAYABLE|TOTAL\s+AMOUNT|NET\s+PAYABLE)[\s:.]*([0-9,]{1,15}(?:\.[0-9]{1,2})?)",
+    "meter_identity": r"METER\s*(?:NO|NUMBER|#|SERIAL)[\s:.]*([A-Z0-9-]{1,40})",
+    "reading_date": r"(?:READING\s+DATE|METER\s+READING\s+DATE)[\s:.]*(\d{4}-\d{2}-\d{2}|\d{2}[-/]\d{2}[-/]\d{4}|\d{2}-[A-Za-z]{3}-\d{2,4})",
+    "due_date": r"DUE\s+DATE[\s:.]*(\d{4}-\d{2}-\d{2}|\d{2}[-/]\d{2}[-/]\d{4}|\d{2}-[A-Za-z]{3}-\d{2,4})",
+    "tariff": r"TARIFF[\s:.]*([A-Z0-9()-]{2,20})",
+    "package_charges": r"(?:PACKAGE|MONTHLY|BROADBAND)\s+CHARGES[\s:.]*([0-9,]{1,10}(?:\.[0-9]{1,2})?)",
+    "wht_tax": r"(?:WITHHOLDING\s+TAX|WHT|ADVANCE\s+TAX)[\s:.]*([0-9,]{1,8}(?:\.[0-9]{1,2})?)",
+    "sales_tax": r"(?:SALES\s+TAX|PRA|GST|FED)[\s:.]*([0-9,]{1,8}(?:\.[0-9]{1,2})?)",
+    "arrears": r"(?:ARREARS|PREVIOUS\s+(?:BALANCE|DUES))[\s:.]*([0-9,]{1,10}(?:\.[0-9]{1,2})?)",
 }
+
+MONTH_MAP = {
+    "JAN": "01", "FEB": "02", "MAR": "03", "APR": "04", "MAY": "05", "JUN": "06",
+    "JUL": "07", "AUG": "08", "SEP": "09", "OCT": "10", "NOV": "11", "DEC": "12",
+}
+
+def normalize_date(raw: str) -> str:
+    cleaned = raw.strip().upper()
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", cleaned):
+        return cleaned
+    # Match DD-MMM-YYYY or DD-MMM-YY e.g. 15-AUG-2026 or 15-AUG-26
+    m = re.match(r"^(\d{1,2})-([A-Z]{3})-(\d{2,4})$", cleaned)
+    if m:
+        day = m.group(1).zfill(2)
+        month = MONTH_MAP.get(m.group(2), "01")
+        year = m.group(3)
+        if len(year) == 2: year = f"20{year}"
+        return f"{year}-{month}-{day}"
+    # Match DD/MM/YYYY or DD-MM-YYYY
+    m = re.match(r"^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$", cleaned)
+    if m:
+        return f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"
+    return cleaned
+
+def clean_val(key: str, raw_val: str) -> str:
+    compact = re.sub(r"\s+", "", raw_val).replace(",", "")
+    if key in ("reading_date", "due_date"):
+        return normalize_date(compact)
+    return compact
 
 def sniff(data: bytes) -> str | None:
     if data.startswith(b"%PDF-"): return "application/pdf"
@@ -35,7 +70,7 @@ def sniff(data: bytes) -> str | None:
 
 def extract_fields(text: str) -> dict[str, str]:
     normalized = " ".join(text.upper().split())
-    return {key: re.sub(r"\s+", "", match.group(1)).replace(",", "") for key, pattern in PATTERNS.items() if (match := re.search(pattern, normalized))}
+    return {key: clean_val(key, match.group(1)) for key, pattern in PATTERNS.items() if (match := re.search(pattern, normalized))}
 
 
 def candidates_from_tsv(tsv: str, page: int, width: int, height: int) -> dict:
@@ -59,7 +94,7 @@ def candidates_from_tsv(tsv: str, page: int, width: int, height: int) -> dict:
         right = max(word["left"] + word["width"] for word in words)
         bottom = max(word["top"] + word["height"] for word in words)
         confidence = [word["confidence"] for word in words if 0 <= word["confidence"] <= 100]
-        result[key] = {"value": re.sub(r"\s+", "", match.group(1)).replace(",", ""), "page": page, "confidence": round(sum(confidence)/len(confidence), 1) if confidence else None, "box": {"x": left/width, "y": top/height, "width": (right-left)/width, "height": (bottom-top)/height}}
+        result[key] = {"value": clean_val(key, match.group(1)), "page": page, "confidence": round(sum(confidence)/len(confidence), 1) if confidence else None, "box": {"x": left/width, "y": top/height, "width": (right-left)/width, "height": (bottom-top)/height}}
     return result
 
 

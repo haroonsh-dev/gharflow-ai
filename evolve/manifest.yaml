@@ -1,0 +1,11 @@
+name: gharflow-bill-agent
+version: 1.0.0
+description: Autonomous bill extraction, tariff auditing, and NEPRA dispute agent for Pakistani electricity consumers.
+entrypoint: scripts/evolve-bill-agent.mjs
+evolvable_layers:
+  - prompts/bill-analyst.md
+  - memory/episodic.jsonl
+  - skills/parse-pakistan-electricity-bills/SKILL.md
+benchmarks:
+  - demo/evaluation-manifest.json
+gate_command: npm test

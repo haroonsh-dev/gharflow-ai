@@ -1,0 +1,5 @@
+{"trial": 1, "task": "lesco_date_normalization", "observation": "Raw date 15-AUG-2026 was missed by strict YYYY-MM-DD pattern.", "fix": "Added regex for DD-MMM-YYYY and month mapping.", "status": "resolved"}
+{"trial": 2, "task": "ke_account_number", "observation": "K-Electric uses 13-digit accounts instead of 14 digits.", "fix": "Allowed 13-14 digits in schemas and OCR regex.", "status": "resolved"}
+{"trial": 3, "task": "pro_rata_slab_jump", "observation": "Bills with 34+ day cycles pushed consumers past 200 units slab.", "fix": "Integrated NEPRA CSM Section 4.1 pro-rata audit into findings engine.", "status": "resolved"}
+{"timestamp":"2026-10-20T14:02:52.206Z","benchmark":"Synthetic document pipeline fixtures","score":"100.0%","testsPassed":34,"status":"verified"}
+{"timestamp":"2026-10-20T15:58:52.291Z","benchmark":"Synthetic document pipeline fixtures","score":"100.0%","testsPassed":40,"status":"verified"}

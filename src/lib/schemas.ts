@@ -64,7 +64,7 @@ export const ocrResponseSchema = z.object({
 });
 export const billSchema = z.object({
   evidenceFileId: z.uuid().nullable().optional(),
-  referenceNumber: z.string().regex(/^\d{14}$/),
+  referenceNumber: z.string().regex(/^\d{10,14}$/),
   billMonth: date.refine(
     (value) => value.endsWith("-01"),
     "Bill month must use the first day of the month",
@@ -90,7 +90,7 @@ export const billSchema = z.object({
   confirmed: z.literal(true),
 });
 export const meterSchema = z.object({
-  referenceNumber: z.string().regex(/^\d{14}$/),
+  referenceNumber: z.string().regex(/^\d{13,14}$/),
   meterIdentity: z.string().trim().min(1).max(80),
   readingDate: date,
   readingValue: reading,

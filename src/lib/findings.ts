@@ -27,6 +27,8 @@ export type ReadingRecord = {
   meterType: "conventional" | "unsupported" | "unknown";
 };
 import type { FindingCode } from "./guidance";
+import { auditBillingCycleDays } from "./tariffs";
+import { isPtclAccountId } from "./ptcl";
 export type Finding = {
   code?: FindingCode;
   unavailableReason?:
@@ -132,17 +134,49 @@ export function analyze(
           )
           .map((other) => other.id),
       );
-    if (bill.meterType !== "conventional") {
-      add(
-        "unsupported",
-        "Confirm the meter arrangement",
-        "These checks support conventional domestic meters. Unknown, time-of-use and net-billing arrangements need a different calculation.",
-        [],
-        "info",
-        [],
-        [],
-        ["Conventional meter arrangement"],
+    const isPtcl = isPtclAccountId(bill.referenceNumber);
+    if (isPtcl) {
+      const previousMonth = peers.filter(
+        (other) =>
+          monthIndex(bill.billMonth) - monthIndex(other.billMonth) === 1,
       );
+      if (previousMonth.length === 1) {
+        const prevBill = previousMonth[0];
+        const prevPayments = payments.filter((p) => p.billId === prevBill.id);
+        const prevPaidTotal = prevPayments.reduce((s, p) => s + p.amount, 0);
+        if (
+          prevPaidTotal > 0 &&
+          bill.totalAmount >= prevBill.totalAmount * 1.7
+        ) {
+          add(
+            "ptcl_arrears_uncredited",
+            "Possible uncredited arrears on PTCL bill",
+            `Previous bill was paid (PKR ${prevPaidTotal.toFixed(2)}), but current bill increased sharply to PKR ${bill.totalAmount.toFixed(2)}. Check invoice for unpaid arrears carryover under PTA regulations.`,
+            [
+              `Previous paid: PKR ${prevPaidTotal}`,
+              `Current bill: PKR ${bill.totalAmount}`,
+              `Account ID: ${bill.referenceNumber}`,
+            ],
+            "review",
+            [prevBill.id],
+          );
+        }
+      }
+    }
+
+    if (bill.meterType !== "conventional") {
+      if (!isPtcl) {
+        add(
+          "unsupported",
+          "Confirm the meter arrangement",
+          "These checks support conventional domestic meters. Unknown, time-of-use and net-billing arrangements need a different calculation.",
+          [],
+          "info",
+          [],
+          [],
+          ["Conventional meter arrangement"],
+        );
+      }
       continue;
     }
     if (bill.readingStatus !== "actual")
@@ -238,6 +272,35 @@ export function analyze(
           "review",
           [earlier.id],
         );
+      if (
+        earlier.readingDate &&
+        bill.readingDate &&
+        bill.billedUnits !== null &&
+        bill.billedUnits > 0
+      ) {
+        const cycleAudit = auditBillingCycleDays(
+          earlier.readingDate,
+          bill.readingDate,
+          bill.billedUnits,
+        );
+        if (cycleAudit && cycleAudit.isOverbilledByDays) {
+          add(
+            "pro_rata_slab_jump",
+            "Extended reading cycle caused slab jump",
+            cycleAudit.recommendation,
+            [
+              `Reading cycle: ${cycleAudit.actualDays} days (normal: ${cycleAudit.standardDays})`,
+              `Billed units: ${cycleAudit.billedUnits} kWh`,
+              `30-day normalized: ${cycleAudit.normalizedUnits} kWh`,
+              cycleAudit.actualSlabThreshold
+                ? `Exceeded ${cycleAudit.actualSlabThreshold} kWh slab threshold`
+                : `Excess units: ${cycleAudit.excessUnitsAttributedToDelay} kWh`,
+            ],
+            "review",
+            [earlier.id],
+          );
+        }
+      }
     } else {
       const reason =
         !currentUnique || previousMonth.length > 1

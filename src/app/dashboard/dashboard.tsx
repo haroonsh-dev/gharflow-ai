@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { guidance, type InvestigationAction } from "@/lib/guidance";
 import { consumptionPlan, type Finding } from "@/lib/findings";
+import { identifyDisco } from "@/lib/online-bill";
+import { isPtclAccountId } from "@/lib/ptcl";
 import type { Extraction } from "@/lib/schemas";
 import type { Bill, Overview } from "@/lib/types";
 import {
@@ -276,7 +278,7 @@ export default function Dashboard() {
             <strong>
               {data?.isDemo ? t("Synthetic demo") : t("My household")}
             </strong>
-            <small>{t("LESCO evidence workspace")}</small>
+            <small>{t("Utility & Telecom Intelligence")}</small>
           </span>
         </div>
         <span className="sidebar-caption">{t("WORKSPACE")}</span>
@@ -351,10 +353,24 @@ export default function Dashboard() {
                 : navigation.find((item) => item.key === view)?.label}
             </strong>
           </span>
-          <span className="topbar-right">
-            <ShieldCheck size={15} />
-            {t("Private workspace")}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span
+              className="pill"
+              style={{
+                background: "rgba(16, 185, 129, 0.08)",
+                borderColor: "rgba(16, 185, 129, 0.25)",
+                color: "#34d399",
+                fontSize: "11px",
+              }}
+            >
+              <span className="coverage-dot" />
+              {t("NEPRA & PTA Engines Active")}
+            </span>
+            <span className="topbar-right">
+              <ShieldCheck size={15} style={{ color: "#38bdf8" }} />
+              {t("Private workspace")}
+            </span>
+          </div>
         </header>
         <main className="content">
           {data?.isDemo && (
@@ -392,23 +408,49 @@ export default function Dashboard() {
           ) : (
             <>
               {view !== "add" && connections.length > 0 && (
-                <label className="connection-switch">
-                  {t("Electricity connection")}
-                  <select
-                    value={reference}
-                    onChange={(event) => {
-                      setConnection(event.target.value);
-                      setTargetBill(null);
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "20px" }}>
+                  <label className="connection-switch" style={{ margin: 0 }}>
+                    {t("Active connection")}
+                    <select
+                      value={reference}
+                      onChange={(event) => {
+                        setConnection(event.target.value);
+                        setTargetBill(null);
+                      }}
+                    >
+                      {connections.map((value) => {
+                        const disco = identifyDisco(value);
+                        const isPtcl = isPtclAccountId(value);
+                        const label = isPtcl
+                          ? `PTCL · Account ending ${value.slice(-4)}`
+                          : disco
+                            ? `${disco.name} · Ending ${value.slice(-4)}`
+                            : `Connection ending ${value.slice(-4)}`;
+                        return (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <span
+                    className="pill"
+                    style={{
+                      background: isPtclAccountId(reference)
+                        ? "rgba(139, 92, 246, 0.12)"
+                        : "rgba(6, 182, 212, 0.12)",
+                      borderColor: isPtclAccountId(reference)
+                        ? "rgba(139, 92, 246, 0.3)"
+                        : "rgba(6, 182, 212, 0.3)",
+                      color: isPtclAccountId(reference) ? "#c084fc" : "#22d3ee",
                     }}
                   >
-                    {connections.map((value) => (
-                      <option key={value} value={value}>
-                        {t("LESCO · reference ending")}
-                        {value.slice(-4)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    {isPtclAccountId(reference)
+                      ? t("☎️ PTCL Telecom Account")
+                      : t("⚡ Electricity Tariff Connection")}
+                  </span>
+                </div>
               )}
               {view === "overview" && (
                 <OverviewView

@@ -11,7 +11,11 @@ export type FindingCode =
   | "jump"
   | "comparison"
   | "observation"
-  | "observation_missing";
+  | "observation_missing"
+  | "pro_rata_slab_jump"
+  | "slab_tier_breach"
+  | "ptcl_arrears_uncredited"
+  | "ptcl_tax_discrepancy";
 export type InvestigationAction = {
   kind: "bill" | "reading" | "payment" | "previousBill" | "case";
   billId?: string;
@@ -116,6 +120,37 @@ export function guidance(finding: Finding): InvestigationAction[] {
           ...inspect,
           description:
             "Add missing source values only when the bill or another record supports them.",
+        },
+      ];
+    case "pro_rata_slab_jump":
+    case "slab_tier_breach":
+      return [
+        inspect,
+        {
+          kind: "case",
+          label: "Prepare NEPRA dispute",
+          description:
+            "Create an evidence dossier highlighting the billing cycle delay and pro-rata slab overbilling under NEPRA CSM Section 4.1.",
+        },
+      ];
+    case "ptcl_arrears_uncredited":
+      return [
+        inspect,
+        {
+          kind: "case",
+          label: "Prepare PTA dispute",
+          description:
+            "Create a PTA dispute dossier with your payment receipt to demand uncredited arrears reversal under PTA regulations.",
+        },
+      ];
+    case "ptcl_tax_discrepancy":
+      return [
+        inspect,
+        {
+          kind: "case",
+          label: "Review telecom taxes",
+          description:
+            "Audit PRA 19.5% sales tax and WHT 15% deductions against official withholding certificates.",
         },
       ];
     default:
