@@ -55,14 +55,18 @@ export function calculateSubmeterSplit(
   portions: PortionInput[],
   bill: MainBillContext,
 ): SubmeterSplitCalculation {
+  let hasReversedReading = false;
+  let reversedPortionName = "";
+
   const resolvedPortions = portions.map((p) => {
     let units = 0;
-    if (
-      p.currentReading != null &&
-      p.previousReading != null &&
-      p.currentReading >= p.previousReading
-    ) {
-      units = Math.round((p.currentReading - p.previousReading) * 10) / 10;
+    if (p.currentReading != null && p.previousReading != null) {
+      if (p.currentReading >= p.previousReading) {
+        units = Math.round((p.currentReading - p.previousReading) * 10) / 10;
+      } else {
+        hasReversedReading = true;
+        reversedPortionName = p.name || "Sub-meter";
+      }
     } else if (p.unitsConsumed != null && p.unitsConsumed >= 0) {
       units = Math.round(p.unitsConsumed * 10) / 10;
     }
@@ -95,7 +99,9 @@ export function calculateSubmeterSplit(
     "balanced";
   let alertMessage: string | undefined;
 
-  if (unaccountedCommonUnits > 5) {
+  if (hasReversedReading) {
+    alertMessage = `Reading Sequence Error: ${reversedPortionName} has a current reading lower than previous reading. Please verify register values or check if meter completed a mechanical 99,999 rollover.`;
+  } else if (unaccountedCommonUnits > 5) {
     reconciliationStatus = "common_load_detected";
     alertMessage = `Unaccounted Common Load: Main meter recorded ${mainBilledUnits} kWh, while sub-meters sum to ${totalSubmeterUnits} kWh (+${unaccountedCommonUnits} kWh difference). This typically represents shared water motor, staircase lighting, or wiring line loss.`;
   } else if (unaccountedCommonUnits < -5) {
@@ -111,11 +117,11 @@ export function calculateSubmeterSplit(
   const portionSplits: PortionSplit[] = resolvedPortions.map((p) => {
     let commonAllocation = 0;
     if (unaccountedCommonUnits > 0) {
-      if (bill.commonLoadHandling === "equal_split" && activePortionCount > 0) {
-        commonAllocation =
-          p.calculatedUnits > 0
-            ? Math.round((unaccountedCommonUnits / activePortionCount) * 10) / 10
-            : 0;
+      if (bill.commonLoadHandling === "equal_split") {
+        const count = activePortionCount > 0 ? activePortionCount : resolvedPortions.length;
+        if (count > 0 && (activePortionCount === 0 || p.calculatedUnits > 0)) {
+          commonAllocation = Math.round((unaccountedCommonUnits / count) * 10) / 10;
+        }
       } else if (
         bill.commonLoadHandling === "proportional" &&
         totalSubmeterUnits > 0
@@ -191,6 +197,21 @@ _Generated via GharFlow AI Sub-Meter Fair-Share Reconciliation._`;
       whatsappText,
     };
   });
+
+  // Reconcile rounding discrepancy to guarantee sum of portions matches totalBillPkr to the exact rupee
+  const calculatedTotalPayable = portionSplits.reduce((sum, p) => sum + p.totalPayablePkr, 0);
+  const diffPkr = totalBillPkr - calculatedTotalPayable;
+  if (diffPkr !== 0 && portionSplits.length > 0) {
+    const highestIdx = portionSplits.reduce(
+      (maxIdx, p, idx, arr) => (p.totalPayablePkr > arr[maxIdx].totalPayablePkr ? idx : maxIdx),
+      0,
+    );
+    portionSplits[highestIdx].totalPayablePkr += diffPkr;
+    portionSplits[highestIdx].taxesAndLeviesPkr = Math.max(
+      0,
+      portionSplits[highestIdx].totalPayablePkr - portionSplits[highestIdx].baseEnergyPkr,
+    );
+  }
 
   return {
     totalSubmeterUnits,

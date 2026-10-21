@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { identity } from "@/lib/auth";
 import { identifyDisco, parsePitcHtml } from "@/lib/online-bill";
 import { isPtclAccountId, ptclBillQueryUrl } from "@/lib/ptcl";
+import { jsonBody } from "@/lib/request-body";
 
 export async function POST(request: Request) {
   const person = await identity();
@@ -10,8 +11,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as { referenceNumber?: string };
-    const rawRef = String(body.referenceNumber ?? "").trim();
+    const body = (await jsonBody(request)) as { referenceNumber?: string };
+    const rawRef = String(body?.referenceNumber ?? "").trim();
     const cleanRef = rawRef.replace(/\D/g, "");
 
     if (!cleanRef || cleanRef.length < 10 || cleanRef.length > 14) {

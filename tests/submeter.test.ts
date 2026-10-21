@@ -116,3 +116,51 @@ test("calculateSubmeterSplit flags when submeters exceed main meter", () => {
   assert.equal(result.reconciliationStatus, "submeters_exceed_main");
   assert.ok(result.alertMessage?.includes("Sub-meter Inconsistency"));
 });
+
+test("calculateSubmeterSplit reconciles exact rupee totals despite rounding", () => {
+  // 3 portions dividing an odd amount where 1/3 produces fractions (Rs 10,000 / 3 = 3333.33)
+  const portions: PortionInput[] = [
+    { id: "p1", name: "Portion 1", unitsConsumed: 100 },
+    { id: "p2", name: "Portion 2", unitsConsumed: 100 },
+    { id: "p3", name: "Portion 3", unitsConsumed: 100 },
+  ];
+
+  const bill: MainBillContext = {
+    referenceNumber: "112233",
+    discoName: "FESCO",
+    billMonth: "2026-06",
+    mainBilledUnits: 300,
+    mainTotalAmountPkr: 10000,
+    commonLoadHandling: "equal_split",
+  };
+
+  const result = calculateSubmeterSplit(portions, bill);
+  const sumPayable = result.portions.reduce((sum, p) => sum + p.totalPayablePkr, 0);
+
+  // Must match exactly 10,000 PKR to the rupee without 1 rupee missing
+  assert.equal(sumPayable, 10000);
+});
+
+test("calculateSubmeterSplit flags reversed sub-meter readings", () => {
+  const portions: PortionInput[] = [
+    {
+      id: "p1",
+      name: "Basement",
+      previousReading: 5000,
+      currentReading: 4800, // Reversed / lower!
+    },
+  ];
+
+  const bill: MainBillContext = {
+    referenceNumber: "554433",
+    discoName: "GEPCO",
+    billMonth: "2026-05",
+    mainBilledUnits: 100,
+    mainTotalAmountPkr: 5000,
+    commonLoadHandling: "equal_split",
+  };
+
+  const result = calculateSubmeterSplit(portions, bill);
+  assert.ok(result.alertMessage?.includes("Reading Sequence Error"));
+  assert.ok(result.alertMessage?.includes("Basement"));
+});
