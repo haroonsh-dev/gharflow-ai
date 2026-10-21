@@ -19,6 +19,7 @@ import {
   Zap as Bolt,
   Sun,
   Globe,
+  Users,
   ChevronRight,
   FileText,
   Gauge,
@@ -59,12 +60,14 @@ import ApplianceSimulator from "./components/appliance-simulator";
 import SolarAuditor from "./components/solar-auditor";
 import OnlineFetcher from "./components/online-fetcher";
 import WhatsAppDispatcher from "./components/whatsapp-dispatcher";
+import SubmeterSplitter from "./components/submeter-splitter";
 type View =
   | "investigation"
   | "overview"
   | "bills"
   | "appliances"
   | "solar"
+  | "submeter"
   | "add"
   | "cases"
   | "readings"
@@ -81,6 +84,7 @@ const navigation = [
   },
   { key: "appliances", label: t("Appliance load simulator"), icon: Bolt },
   { key: "solar", label: t("Solar & green meter"), icon: Sun },
+  { key: "submeter", label: t("Sub-meter bill splitter"), icon: Users },
   { key: "cases", label: t("Tracked cases"), icon: FolderOpen },
   { key: "readings", label: t("Meter readings"), icon: Gauge },
   { key: "payments", label: t("Payment records"), icon: Wallet },
@@ -523,6 +527,22 @@ export default function Dashboard() {
                   <SolarAuditor />
                 </>
               )}
+              {view === "submeter" && (
+                <>
+                  <PageHead
+                    eyebrow={t("MULTI-TENANT INTELLIGENCE")}
+                    title={t("Sub-Meter Fair-Share Bill Splitter")}
+                    description={t(
+                      "Equitably divide a shared DISCO electricity connection across portions, tenants, or joint family floors. Settle progressive slab jumps, unmetered water pump loads, and generate instant WhatsApp slips.",
+                    )}
+                  />
+                  <SubmeterSplitter
+                    activeReference={reference}
+                    bills={active}
+                    isDemo={data?.isDemo}
+                  />
+                </>
+              )}
               {view === "investigation" && (
                 <InvestigationView
                   key={reference}
@@ -822,6 +842,35 @@ function OverviewView({
           </div>
           <button className="button button-outline" onClick={() => go("solar")} style={{ alignSelf: "flex-start" }}>
             {t("Audit Solar Credits")}
+            <ArrowRight size={15} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "20px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(168,85,247,0.02) 100%)",
+            border: "1px solid rgba(139,92,246,0.2)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: "14px",
+          }}
+        >
+          <div>
+            <span className="eyebrow" style={{ color: "#8b5cf6", marginBottom: "4px", display: "inline-block" }}>
+              👥 {t("MULTI-TENANT")}
+            </span>
+            <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 700 }}>
+              {t("Sub-Meter Fair-Share Splitter")}
+            </h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-secondary)" }}>
+              {t("Equitably split main DISCO bill between portions and tenants. Generate 1-click WhatsApp rent slips.")}
+            </p>
+          </div>
+          <button className="button button-outline" onClick={() => go("submeter")} style={{ alignSelf: "flex-start" }}>
+            {t("Split Bill & Slips")}
             <ArrowRight size={15} />
           </button>
         </div>
