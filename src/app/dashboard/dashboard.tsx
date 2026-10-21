@@ -31,6 +31,7 @@ import {
   Wallet,
   X,
   FolderOpen,
+  Flame,
 } from "lucide-react";
 import { guidance, type InvestigationAction } from "@/lib/guidance";
 import { consumptionPlan, type Finding } from "@/lib/findings";
@@ -61,6 +62,7 @@ import SolarAuditor from "./components/solar-auditor";
 import OnlineFetcher from "./components/online-fetcher";
 import WhatsAppDispatcher from "./components/whatsapp-dispatcher";
 import SubmeterSplitter from "./components/submeter-splitter";
+import SuiGasAudit from "./components/sui-gas-audit";
 type View =
   | "investigation"
   | "overview"
@@ -68,6 +70,7 @@ type View =
   | "appliances"
   | "solar"
   | "submeter"
+  | "sui_gas"
   | "add"
   | "cases"
   | "readings"
@@ -85,6 +88,7 @@ const navigation = [
   { key: "appliances", label: t("Appliance load simulator"), icon: Bolt },
   { key: "solar", label: t("Solar & green meter"), icon: Sun },
   { key: "submeter", label: t("Sub-meter bill splitter"), icon: Users },
+  { key: "sui_gas", label: t("Sui Gas (SSGC & SNGPL)"), icon: Flame },
   { key: "cases", label: t("Tracked cases"), icon: FolderOpen },
   { key: "readings", label: t("Meter readings"), icon: Gauge },
   { key: "payments", label: t("Payment records"), icon: Wallet },
@@ -543,6 +547,18 @@ export default function Dashboard() {
                   />
                 </>
               )}
+              {view === "sui_gas" && (
+                <>
+                  <PageHead
+                    eyebrow={t("NATURAL GAS INTELLIGENCE")}
+                    title={t("Sui Gas (SSGC & SNGPL) Audit & MMBTU Engine")}
+                    description={t(
+                      "Audit volume-to-energy conversion, OGRA gazetted progressive domestic slabs, protected vs. unprotected tariffs, and winter geyser / heater surge penalties.",
+                    )}
+                  />
+                  <SuiGasAudit isDemo={data?.isDemo} />
+                </>
+              )}
               {view === "investigation" && (
                 <InvestigationView
                   key={reference}
@@ -871,6 +887,35 @@ function OverviewView({
           </div>
           <button className="button button-outline" onClick={() => go("submeter")} style={{ alignSelf: "flex-start" }}>
             {t("Split Bill & Slips")}
+            <ArrowRight size={15} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "20px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(234,88,12,0.02) 100%)",
+            border: "1px solid rgba(249,115,22,0.2)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: "14px",
+          }}
+        >
+          <div>
+            <span className="eyebrow" style={{ color: "#ea580c", marginBottom: "4px", display: "inline-block" }}>
+              🔥 {t("SUI GAS")}
+            </span>
+            <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 700 }}>
+              {t("SSGC & SNGPL Gas Auditor")}
+            </h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-secondary)" }}>
+              {t("Audit MMBTU conversion, OGRA protected slabs, winter geyser surges, and generate official dispute letters.")}
+            </p>
+          </div>
+          <button className="button button-outline" onClick={() => go("sui_gas")} style={{ alignSelf: "flex-start" }}>
+            {t("Audit Sui Gas")}
             <ArrowRight size={15} />
           </button>
         </div>

@@ -7,7 +7,7 @@ import { api, json, money } from "./ui";
 
 export type OnlineFetchResult = {
   success: boolean;
-  type: "electricity" | "ptcl";
+  type: "electricity" | "ptcl" | "gas";
   referenceNumber: string;
   disco?: string;
   discoCode?: string;
@@ -80,12 +80,12 @@ export default function OnlineFetcher({
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
         <Globe size={18} style={{ color: "#2563eb" }} />
         <strong style={{ fontSize: "14px" }}>
-          {t("1-Click Online Duplicate Bill Fetcher (PITC / K-Electric / PTCL)")}
+          {t("1-Click Online Duplicate Bill Fetcher (PITC / K-Electric / PTCL / Sui Gas)")}
         </strong>
       </div>
       <p style={{ fontSize: "12.5px", color: "var(--muted)", margin: "0 0 14px" }}>
         {t(
-          "Enter your 14-digit reference number (LESCO, GEPCO, FESCO, IESCO, MEPCO, PESCO, etc.), 13-digit K-Electric account, or 10-digit PTCL ID to fetch live portal duplicate bills.",
+          "Enter your 14-digit electricity reference (LESCO, MEPCO, IESCO, etc.), 13-digit KE account, 10-digit PTCL ID, or 10/11-digit Sui Gas (SNGPL/SSGC) number to fetch portal duplicates.",
         )}
       </p>
 

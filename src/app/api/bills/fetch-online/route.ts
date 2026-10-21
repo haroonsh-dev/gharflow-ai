@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { identity } from "@/lib/auth";
 import { identifyDisco, parsePitcHtml } from "@/lib/online-bill";
 import { isPtclAccountId, ptclBillQueryUrl } from "@/lib/ptcl";
+import { identifyGasProvider } from "@/lib/sui-gas";
 import { jsonBody } from "@/lib/request-body";
 
 export async function POST(request: Request) {
@@ -11,15 +12,38 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await jsonBody(request)) as { referenceNumber?: string };
+    const body = (await jsonBody(request)) as {
+      referenceNumber?: string;
+      utilityType?: "electricity" | "ptcl" | "gas";
+    };
     const rawRef = String(body?.referenceNumber ?? "").trim();
     const cleanRef = rawRef.replace(/\D/g, "");
 
     if (!cleanRef || cleanRef.length < 10 || cleanRef.length > 14) {
       return NextResponse.json(
-        { error: "Reference number must be 10 digits (PTCL), 13 digits (KE), or 14 digits (State DISCOs)." },
+        { error: "Reference number must be 10 digits (PTCL/SSGC), 11 digits (SNGPL), 13 digits (KE), or 14 digits (State DISCOs)." },
         { status: 400 },
       );
+    }
+
+    // Explicit gas query or 11-digit SNGPL consumer ID
+    if (body?.utilityType === "gas" || cleanRef.length === 11) {
+      const gasInfo = identifyGasProvider(cleanRef) ?? {
+        provider: cleanRef.length === 11 ? "sngpl" : "ssgc",
+        name: cleanRef.length === 11 ? "SNGPL (Sui Northern Gas)" : "SSGC (Sui Southern Gas)",
+        portalUrl:
+          cleanRef.length === 11
+            ? `https://www.sngpl.com.pk/bill/view_bill.jsp?consumer_no=${cleanRef}`
+            : `https://bill.ssgc.com.pk/`,
+      };
+      return NextResponse.json({
+        success: true,
+        type: "gas",
+        referenceNumber: cleanRef,
+        provider: gasInfo.name,
+        queryUrl: gasInfo.portalUrl,
+        notice: `${gasInfo.name} duplicate bill lookup ready. View official duplicate or audit slabs directly in Sui Gas Audit.`,
+      });
     }
 
     // PTCL Account query

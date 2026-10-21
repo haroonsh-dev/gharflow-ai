@@ -15,7 +15,10 @@ export type FindingCode =
   | "pro_rata_slab_jump"
   | "slab_tier_breach"
   | "ptcl_arrears_uncredited"
-  | "ptcl_tax_discrepancy";
+  | "ptcl_tax_discrepancy"
+  | "sui_gas_unprotected_penalty"
+  | "sui_gas_gcv_discrepancy"
+  | "sui_gas_meter_rent_excess";
 export type InvestigationAction = {
   kind: "bill" | "reading" | "payment" | "previousBill" | "case";
   billId?: string;
@@ -151,6 +154,36 @@ export function guidance(finding: Finding): InvestigationAction[] {
           label: "Review telecom taxes",
           description:
             "Audit PRA 19.5% sales tax and WHT 15% deductions against official withholding certificates.",
+        },
+      ];
+    case "sui_gas_unprotected_penalty":
+      return [
+        inspect,
+        {
+          kind: "case",
+          label: "Prepare OGRA dispute petition",
+          description:
+            "File an OGRA dispute challenging wrongful categorization under the punitive Unprotected gas tariff despite consumption falling within the Protected threshold (<= 0.90 HM³).",
+        },
+      ];
+    case "sui_gas_gcv_discrepancy":
+      return [
+        inspect,
+        {
+          kind: "case",
+          label: "Demand GCV testing & recalibration",
+          description:
+            "Request official Gross Calorific Value (GCV) and pressure factor certification from the gas utility under OGRA Complaint Resolution Regulations.",
+        },
+      ];
+    case "sui_gas_meter_rent_excess":
+      return [
+        inspect,
+        {
+          kind: "case",
+          label: "Dispute excessive gas meter charges",
+          description:
+            "Contest arbitrary meter rent or unauthorized P&U charges exceeding gazetted OGRA rates.",
         },
       ];
     default:
