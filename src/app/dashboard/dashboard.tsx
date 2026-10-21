@@ -502,7 +502,13 @@ export default function Dashboard() {
                       "Interactive load simulator for Pakistani domestic appliances. Test runtime hours, calculate progressive tariff slabs, and see exactly which appliance pushes you into unprotected rates.",
                     )}
                   />
-                  <ApplianceSimulator />
+                  <ApplianceSimulator
+                    activeReferenceNumber={reference}
+                    latestBillKwh={active[0]?.billedUnits ?? null}
+                    latestBillMonth={active[0]?.billMonth ?? null}
+                    latestBillAmount={active[0]?.totalAmount ?? null}
+                    isDemo={data?.isDemo}
+                  />
                 </>
               )}
               {view === "solar" && (
